@@ -17,9 +17,16 @@ public enum Rank {
     INVITE("invite", -3),
     UNINVITE("uninvite", -3),
 
-        ;
+    ;
 
     public static final Rank[] values = values();
+    private static final Map<Integer, Rank> byId = new HashMap<>();
+
+    static {
+        for (Rank rank : values()) {
+            byId.put(rank.id, rank);
+        }
+    }
 
     public final String key;
     public final int id;
@@ -48,20 +55,12 @@ public enum Rank {
         }
     }
 
+    public static Rank byId(int id) {
+        return byId.get(id);
+    }
+
     @Override
     public String toString() {
         return key;
-    }
-
-    private static Map<Integer, Rank> byId = new HashMap<>();
-
-    static {
-        for (Rank rank : values()) {
-            byId.put(rank.id, rank);
-        }
-    }
-
-    public static Rank byId(int id) {
-        return byId.get(id);
     }
 }

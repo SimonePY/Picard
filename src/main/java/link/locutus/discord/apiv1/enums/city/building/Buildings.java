@@ -1,6 +1,5 @@
 package link.locutus.discord.apiv1.enums.city.building;
 
-import static link.locutus.discord.apiv1.enums.Continent.*;
 import link.locutus.discord.apiv1.enums.MilitaryUnit;
 import link.locutus.discord.apiv1.enums.ResourceType;
 import link.locutus.discord.apiv1.enums.city.building.imp.*;
@@ -15,18 +14,8 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Predicate;
 
-import static link.locutus.discord.apiv1.enums.ResourceType.ALUMINUM;
-import static link.locutus.discord.apiv1.enums.ResourceType.BAUXITE;
-import static link.locutus.discord.apiv1.enums.ResourceType.COAL;
-import static link.locutus.discord.apiv1.enums.ResourceType.FOOD;
-import static link.locutus.discord.apiv1.enums.ResourceType.GASOLINE;
-import static link.locutus.discord.apiv1.enums.ResourceType.IRON;
-import static link.locutus.discord.apiv1.enums.ResourceType.LEAD;
-import static link.locutus.discord.apiv1.enums.ResourceType.MONEY;
-import static link.locutus.discord.apiv1.enums.ResourceType.MUNITIONS;
-import static link.locutus.discord.apiv1.enums.ResourceType.OIL;
-import static link.locutus.discord.apiv1.enums.ResourceType.STEEL;
-import static link.locutus.discord.apiv1.enums.ResourceType.URANIUM;
+import static link.locutus.discord.apiv1.enums.Continent.*;
+import static link.locutus.discord.apiv1.enums.ResourceType.*;
 
 public class Buildings {
     public final static PowerBuilding COAL_POWER = new BuildingBuilder("impCoalpower").cost(MONEY, 5000).pollution(8).upkeep(MONEY, 1200).power(COAL, 1.2d, 100, 500);
@@ -132,6 +121,9 @@ public class Buildings {
     public final static Building[] COMMERCE_BUILDINGS = {SUBWAY, MALL, STADIUM, BANK, SUPERMARKET};
 
     public final static Map<ResourceType, Building> RESOURCE_BUILDING = new ConcurrentHashMap<>();
+    public final static int[] HASHCODES;
+    private final static Map<String, Building> BUILDINGS_MAP = new HashMap<>();
+
     static {
         RESOURCE_BUILDING.put(COAL, COAL_MINE);
         RESOURCE_BUILDING.put(OIL, OIL_WELL);
@@ -145,16 +137,13 @@ public class Buildings {
         RESOURCE_BUILDING.put(ALUMINUM, ALUMINUM_REFINERY);
         RESOURCE_BUILDING.put(MUNITIONS, MUNITIONS_FACTORY);
     }
-    public final static int[] HASHCODES;
-    private final static Map<String, Building> BUILDINGS_MAP = new HashMap<>();
 
     static {
         try {
             List<Building> buildingsList = new ArrayList<>();
             for (Field field : Buildings.class.getDeclaredFields()) {
                 Object value = field.get(null);
-                if (value != null && value instanceof Building) {
-                    Building building = (Building) value;
+                if (value != null && value instanceof Building building) {
                     ((ABuilding) building).setOrdinal(buildingsList.size());
                     buildingsList.add(building);
                     BUILDINGS_MAP.put(building.name(), building);

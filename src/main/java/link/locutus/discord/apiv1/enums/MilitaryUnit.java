@@ -1,21 +1,16 @@
 package link.locutus.discord.apiv1.enums;
 
-import link.locutus.discord.Locutus;
-import link.locutus.discord.db.entities.DBNation;
-import link.locutus.discord.util.PnwUtil;
-import link.locutus.discord.util.SpyCount;
-import link.locutus.discord.util.StringMan;
-import link.locutus.discord.util.trade.TradeManager;
 import link.locutus.discord.apiv1.enums.city.JavaCity;
 import link.locutus.discord.apiv1.enums.city.building.Building;
 import link.locutus.discord.apiv1.enums.city.building.Buildings;
 import link.locutus.discord.apiv1.enums.city.building.MilitaryBuilding;
 import link.locutus.discord.apiv1.enums.city.project.Project;
 import link.locutus.discord.apiv1.enums.city.project.Projects;
+import link.locutus.discord.db.entities.DBNation;
+import link.locutus.discord.util.PnwUtil;
+import link.locutus.discord.util.StringMan;
 
 import java.util.Collection;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
@@ -24,7 +19,7 @@ import static link.locutus.discord.apiv1.enums.ResourceType.*;
 public enum MilitaryUnit {
     SOLDIER("soldiers", 0.0004,
             ResourceType.MONEY.builder(5).build(),
-            ResourceType.MONEY.builder(1.25).add(ResourceType.FOOD, 1/750d).build(),
+            ResourceType.MONEY.builder(1.25).add(ResourceType.FOOD, 1 / 750d).build(),
             true,
             MUNITIONS.toArray(1 / 5000d)
     ),
@@ -33,7 +28,7 @@ public enum MilitaryUnit {
             ResourceType.MONEY.toArray(50),
             true,
             GASOLINE.builder(1 / 100d).add(MUNITIONS, 1 / 100d).build()
-        ),
+    ),
     AIRCRAFT("aircraft", 0.3,
             ResourceType.MONEY.builder(4000).add(ALUMINUM, 5).build(),
             ResourceType.MONEY.toArray(500),
@@ -67,7 +62,7 @@ public enum MilitaryUnit {
         }
     },
     NUKE("nukes", 15,
-             ResourceType.MONEY.builder(1750000).add(ALUMINUM, 750).add(GASOLINE, 500).add(URANIUM, 250).build(),
+            ResourceType.MONEY.builder(1750000).add(ALUMINUM, 750).add(GASOLINE, 500).add(URANIUM, 250).build(),
             ResourceType.MONEY.toArray(35000),
             true,
             ResourceType.getBuffer()
@@ -87,17 +82,14 @@ public enum MilitaryUnit {
     ;
 
     public static double NUKE_RADIATION = 5;
-
-    private final double[] cost;
-
+    public static MilitaryUnit[] values = values();
     protected final double score;
+    private final double[] cost;
     private final double[] consumption;
-    private double costConverted = -1;
     private final String name;
     private final double[] upkeepPeace;
     private final double[] upkeepWar;
-
-    public static MilitaryUnit[] values = values();
+    private double costConverted = -1;
 
     MilitaryUnit(String name, double score, double[] cost, double[] peacetimeUpkeep, boolean multiplyWartimeUpkeep, double[] consumption) {
         this.name = name;
@@ -110,6 +102,23 @@ public enum MilitaryUnit {
         }
         this.consumption = consumption;
         this.score = score;
+    }
+
+    public static MilitaryUnit get(String arg) {
+        for (MilitaryUnit unit : values()) {
+            if (unit.name().equalsIgnoreCase(arg) || (unit.name != null && unit.name.equalsIgnoreCase(arg))) {
+                return unit;
+            }
+        }
+        return null;
+    }
+
+    public static MilitaryUnit valueOfVerbose(String arg) {
+        try {
+            return valueOf(arg);
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("Invalid MilitaryUnit type: `" + arg + "`. options: " + StringMan.getString(values()));
+        }
     }
 
     public int getMaxPerDay(int cities, Predicate<Project> hasProject) {
@@ -133,6 +142,7 @@ public enum MilitaryUnit {
     public int getCap(DBNation nation, boolean update) {
         return getCap(() -> nation.getCityMap(update).values(), nation::hasProject);
     }
+
     public int getCap(Supplier<Collection<JavaCity>> citiesSupplier, Predicate<Project> hasProject) {
         switch (this) {
             case MONEY:
@@ -181,15 +191,6 @@ public enum MilitaryUnit {
         return name;
     }
 
-    public static MilitaryUnit get(String arg) {
-        for (MilitaryUnit unit : values()) {
-            if (unit.name().equalsIgnoreCase(arg) || (unit.name != null && unit.name.equalsIgnoreCase(arg))) {
-                return unit;
-            }
-        }
-        return null;
-    }
-
     public MilitaryBuilding getBuilding() {
         for (Building value : Buildings.values()) {
             if (value instanceof MilitaryBuilding && ((MilitaryBuilding) value).unit() == this) {
@@ -229,13 +230,5 @@ public enum MilitaryUnit {
 
     public double[] getConsumption() {
         return consumption;
-    }
-
-    public static MilitaryUnit valueOfVerbose(String arg) {
-        try {
-            return valueOf(arg);
-        } catch (IllegalArgumentException e) {
-            throw new IllegalArgumentException("Invalid MilitaryUnit type: `" + arg + "`. options: " + StringMan.getString(values()));
-        }
     }
 }

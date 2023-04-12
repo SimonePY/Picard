@@ -1,4 +1,5 @@
 package link.locutus.discord.apiv1.entities;
+
 import com.google.gson.annotations.Expose;
 import com.google.gson.annotations.SerializedName;
 

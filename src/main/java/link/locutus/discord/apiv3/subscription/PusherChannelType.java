@@ -2,7 +2,6 @@ package link.locutus.discord.apiv3.subscription;
 
 import com.pusher.client.Pusher;
 import com.pusher.client.channel.*;
-import rocker.error;
 
 import java.util.Locale;
 import java.util.Set;
@@ -118,12 +117,12 @@ public enum PusherChannelType {
 
     ;
 
-    public static String getEventName(PnwPusherModel model, PnwPusherEvent event, boolean bulk) {
-        return (bulk ? "BULK_" : "") + model.name().toUpperCase(Locale.ROOT) + "_" + event.name().toUpperCase(Locale.ROOT);
-    }
-
     PusherChannelType() {
 
+    }
+
+    public static String getEventName(PnwPusherModel model, PnwPusherEvent event, boolean bulk) {
+        return (bulk ? "BULK_" : "") + model.name().toUpperCase(Locale.ROOT) + "_" + event.name().toUpperCase(Locale.ROOT);
     }
 
     public abstract Channel subscribe(Pusher pusher, String channelName);

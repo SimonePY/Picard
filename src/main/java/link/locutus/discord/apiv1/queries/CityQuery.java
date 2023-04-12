@@ -6,12 +6,12 @@ import link.locutus.discord.apiv1.enums.QueryURL;
 
 public class CityQuery extends Query {
 
-  public CityQuery(int cid, String apiKey) {
-    super(Integer.toString(cid), apiKey);
-  }
+    public CityQuery(int cid, String apiKey) {
+        super(Integer.toString(cid), apiKey);
+    }
 
-  @Override
-  public ApiQuery build() {
-    return new ApiQuery<>(UrlBuilder.build(QueryURL.CITY_URL, args), new City());
-  }
+    @Override
+    public ApiQuery build() {
+        return new ApiQuery<>(UrlBuilder.build(QueryURL.CITY_URL, args), new City());
+    }
 }

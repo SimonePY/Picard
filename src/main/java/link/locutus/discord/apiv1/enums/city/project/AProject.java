@@ -1,14 +1,11 @@
 package link.locutus.discord.apiv1.enums.city.project;
 
-import link.locutus.discord.apiv1.domains.Nation;
 import link.locutus.discord.apiv1.enums.ResourceType;
 import link.locutus.discord.db.entities.DBNation;
 
 import java.util.Collections;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 

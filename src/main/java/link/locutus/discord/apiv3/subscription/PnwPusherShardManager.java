@@ -1,7 +1,5 @@
 package link.locutus.discord.apiv3.subscription;
 
-import com.politicsandwar.graphql.model.Alliance;
-import com.politicsandwar.graphql.model.City;
 import com.politicsandwar.graphql.model.Nation;
 import com.pusher.client.connection.ConnectionState;
 import com.pusher.client.connection.ConnectionStateChange;
@@ -18,17 +16,13 @@ import link.locutus.discord.util.RateLimitUtil;
 import link.locutus.discord.util.SpyTracker;
 import net.dv8tion.jda.api.entities.MessageChannel;
 
-import java.io.IOException;
 import java.util.HashSet;
-import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
-import java.util.function.BiConsumer;
 import java.util.function.Consumer;
-import java.util.stream.Collectors;
 
 public class PnwPusherShardManager {
+    private final Set<Integer> runningAlliances = new HashSet<>();
     private PnwPusherHandler root;
     private SpyTracker spyTracker;
 
@@ -48,6 +42,7 @@ public class PnwPusherShardManager {
     public void load() {
         this.root = new PnwPusherHandler().connect(null, new Consumer<ConnectionStateChange>() {
             private long lastFetch = System.currentTimeMillis();
+
             @Override
             public void accept(ConnectionStateChange connectionStateChange) {
                 if (spyTracker != null && connectionStateChange.getPreviousState() == ConnectionState.RECONNECTING) {
@@ -77,8 +72,6 @@ public class PnwPusherShardManager {
         }
     }
 
-    private final Set<Integer> runningAlliances = new HashSet<>();
-
     public boolean setupSpySubscriptions(GuildDB db, DBAlliance alliance) {
         synchronized (runningAlliances) {
             int allianceId = alliance.getAlliance_id();
@@ -88,13 +81,15 @@ public class PnwPusherShardManager {
             String key = null;
             try {
                 key = getAllianceKey(allianceId);
-            } catch (IllegalArgumentException ignore) {}
+            } catch (IllegalArgumentException ignore) {
+            }
             if (key == null) {
                 MessageChannel channel = db.getOrNull(GuildDB.Key.ESPIONAGE_ALERT_CHANNEL);
                 if (channel != null && channel.canTalk()) {
                     try {
                         RateLimitUtil.queueMessage(channel, "Disabling " + GuildDB.Key.ESPIONAGE_ALERT_CHANNEL + " (invalid key)", false);
-                    } catch (Throwable ignore2) {}
+                    } catch (Throwable ignore2) {
+                    }
                 }
                 db.deleteInfo(GuildDB.Key.ESPIONAGE_ALERT_CHANNEL);
                 return false;
@@ -177,7 +172,7 @@ public class PnwPusherShardManager {
         root.connect();
     }
 
-    public void onAllianceError(int allianceId){
+    public void onAllianceError(int allianceId) {
         System.out.println("Alliance error " + allianceId);
         spyTracker.loadCasualties(allianceId);
     }

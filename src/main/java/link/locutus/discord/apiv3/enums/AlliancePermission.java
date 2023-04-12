@@ -15,8 +15,7 @@ public enum AlliancePermission {
     MANAGE_TREATIES,
     MANAGE_MARKET_SHARE,
     MANAGE_EMBARGOES,
-    PROMOTE_SELF_TO_LEADER
-    ;
+    PROMOTE_SELF_TO_LEADER;
 
     public boolean has(long permission) {
         return (permission & (1 << this.ordinal())) > 0;

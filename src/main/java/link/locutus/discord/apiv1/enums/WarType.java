@@ -4,9 +4,7 @@ public enum WarType {
     RAID("raid", "raid"),
     ORD("ordinary", "ord"),
     ATT("attrition", "att"),
-    NUCLEAR("nuclear", "nuke")
-
-    ;
+    NUCLEAR("nuclear", "nuke");
 
     public static WarType[] values = values();
     private final String name;
@@ -30,15 +28,6 @@ public enum WarType {
         }
     }
 
-    public String getBountyName() {
-        return bountyName;
-    }
-
-    @Override
-    public String toString() {
-        return name;
-    }
-
     public static WarType parse(String input) {
         try {
             return valueOf(input.toUpperCase());
@@ -50,5 +39,14 @@ public enum WarType {
             }
             throw e;
         }
+    }
+
+    public String getBountyName() {
+        return bountyName;
+    }
+
+    @Override
+    public String toString() {
+        return name;
     }
 }

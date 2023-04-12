@@ -1,9 +1,8 @@
 package link.locutus.discord.apiv1.enums.city.building.imp;
 
-import link.locutus.discord.util.PnwUtil;
 import link.locutus.discord.apiv1.enums.ResourceType;
-import link.locutus.discord.apiv1.enums.city.building.Building;
 import link.locutus.discord.apiv1.enums.city.building.PowerBuilding;
+import link.locutus.discord.util.PnwUtil;
 
 import java.util.Collections;
 import java.util.Map;

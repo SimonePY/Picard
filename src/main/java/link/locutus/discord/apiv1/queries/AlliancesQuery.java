@@ -6,12 +6,12 @@ import link.locutus.discord.apiv1.enums.QueryURL;
 
 public class AlliancesQuery extends Query {
 
-  public AlliancesQuery(String apiKey) {
-    super(apiKey);
-  }
+    public AlliancesQuery(String apiKey) {
+        super(apiKey);
+    }
 
-  @Override
-  public ApiQuery build() {
-    return new ApiQuery<>(UrlBuilder.build(QueryURL.ALLIANCES_URL, args), new Alliances());
-  }
+    @Override
+    public ApiQuery build() {
+        return new ApiQuery<>(UrlBuilder.build(QueryURL.ALLIANCES_URL, args), new Alliances());
+    }
 }

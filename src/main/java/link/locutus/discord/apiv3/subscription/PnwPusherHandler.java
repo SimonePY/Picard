@@ -19,7 +19,6 @@ import com.pusher.client.connection.ConnectionState;
 import com.pusher.client.connection.ConnectionStateChange;
 import com.pusher.client.util.HttpChannelAuthorizer;
 import com.pusher.client.util.HttpUserAuthenticator;
-import link.locutus.discord.Locutus;
 import link.locutus.discord.util.AlertUtil;
 import link.locutus.discord.util.FileUtil;
 import link.locutus.discord.util.StringMan;
@@ -41,9 +40,9 @@ public class PnwPusherHandler {
     public static final String AUTH_ENDPOINT = "https://api.politicsandwar.com/subscriptions/v1/auth";
 
     public static final String CHANNEL_ENDPOINT = "https://api.politicsandwar.com/subscriptions/v1/subscribe/{model}/{event}?api_key={key}";
-
-    private Pusher pusher;
     private final ObjectMapper objectMapper;
+    private Pusher pusher;
+
     public PnwPusherHandler() {
         DateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
         DateFormat df2 = new SimpleDateFormat("yyyy-MM-dd");
@@ -51,7 +50,7 @@ public class PnwPusherHandler {
         SimpleModule module = new SimpleModule();
         module.addDeserializer(Instant.class, new JsonDeserializer<Instant>() {
             @Override
-            public Instant deserialize(com.fasterxml.jackson.core.JsonParser p, DeserializationContext ctxt) throws IOException, JacksonException {
+            public Instant deserialize(com.fasterxml.jackson.core.JsonParser p, DeserializationContext ctxt) throws IOException {
                 String text = p.getText();
                 try {
                     return df.parse(text).toInstant();
@@ -62,7 +61,7 @@ public class PnwPusherHandler {
         });
         module.addDeserializer(Date.class, new JsonDeserializer<Date>() {
             @Override
-            public Date deserialize(com.fasterxml.jackson.core.JsonParser p, DeserializationContext ctxt) throws IOException, JacksonException {
+            public Date deserialize(com.fasterxml.jackson.core.JsonParser p, DeserializationContext ctxt) throws IOException {
                 try {
                     return df2.parse(p.getText());
                 } catch (ParseException e) {
@@ -108,8 +107,7 @@ public class PnwPusherHandler {
             PusherOptions options = new PusherOptions()
                     .setUserAuthenticator(new HttpUserAuthenticator(AUTH_ENDPOINT))
                     .setHost(HOST)
-                    .setChannelAuthorizer(new HttpChannelAuthorizer(AUTH_ENDPOINT))
-                    ;
+                    .setChannelAuthorizer(new HttpChannelAuthorizer(AUTH_ENDPOINT));
             this.pusher = new Pusher("a22734a47847a64386c8", options);
 
             pusher.connect(new ConnectionEventListener() {
@@ -138,7 +136,7 @@ public class PnwPusherHandler {
 
     public PnwPusherHandler disconnect() {
         if (pusher != null) {
-            pusher.disconnect();;
+            pusher.disconnect();
         }
         return this;
     }
@@ -168,6 +166,7 @@ public class PnwPusherHandler {
 
         /**
          * If events are bulk events or single (defaults to bulk)
+         *
          * @param bulk
          * @return
          */
@@ -200,8 +199,8 @@ public class PnwPusherHandler {
             String channelName = getChannel();
             parent.bind(channelName, model, event, bulk, event -> {
                 try {
-                String data = event.getData();
-                if (data.isEmpty()) return;
+                    String data = event.getData();
+                    if (data.isEmpty()) return;
 //                System.out.println("Received on " + channelName + ": " + data);
                     if (data.charAt(0) == '[') {
                         CollectionType listTypeRef = parent.objectMapper.getTypeFactory().constructCollectionType(List.class, type);

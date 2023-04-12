@@ -34,102 +34,102 @@ public class ResourceMap {
         return withmoney;
     }
 
-    public Double getWithcredits() {
-        return withcredits;
-    }
-
-    public Double getWithfood() {
-        return withfood;
-    }
-
-    public Double getWithcoal() {
-        return withcoal;
-    }
-
-    public Double getWithoil() {
-        return withoil;
-    }
-
-    public Double getWithuranium() {
-        return withuranium;
-    }
-
-    public Double getWithlead() {
-        return withlead;
-    }
-
-    public Double getWithiron() {
-        return withiron;
-    }
-
-    public Double getWithbauxite() {
-        return withbauxite;
-    }
-
-    public Double getWithgasoline() {
-        return withgasoline;
-    }
-
-    public Double getWithmunitions() {
-        return withmunitions;
-    }
-
-    public Double getWithsteel() {
-        return withsteel;
-    }
-
-    public Double getWithaluminum() {
-        return withaluminum;
-    }
-
-    // Setter Methods
-
     public void setWithmoney(Double withmoney) {
         this.withmoney = withmoney;
+    }
+
+    public Double getWithcredits() {
+        return withcredits;
     }
 
     public void setWithcredits(Double withcredits) {
         this.withcredits = withcredits;
     }
 
+    public Double getWithfood() {
+        return withfood;
+    }
+
     public void setWithfood(Double withfood) {
         this.withfood = withfood;
+    }
+
+    public Double getWithcoal() {
+        return withcoal;
     }
 
     public void setWithcoal(Double withcoal) {
         this.withcoal = withcoal;
     }
 
+    public Double getWithoil() {
+        return withoil;
+    }
+
     public void setWithoil(Double withoil) {
         this.withoil = withoil;
+    }
+
+    public Double getWithuranium() {
+        return withuranium;
     }
 
     public void setWithuranium(Double withuranium) {
         this.withuranium = withuranium;
     }
 
+    public Double getWithlead() {
+        return withlead;
+    }
+
+    // Setter Methods
+
     public void setWithlead(Double withlead) {
         this.withlead = withlead;
+    }
+
+    public Double getWithiron() {
+        return withiron;
     }
 
     public void setWithiron(Double withiron) {
         this.withiron = withiron;
     }
 
+    public Double getWithbauxite() {
+        return withbauxite;
+    }
+
     public void setWithbauxite(Double withbauxite) {
         this.withbauxite = withbauxite;
+    }
+
+    public Double getWithgasoline() {
+        return withgasoline;
     }
 
     public void setWithgasoline(Double withgasoline) {
         this.withgasoline = withgasoline;
     }
 
+    public Double getWithmunitions() {
+        return withmunitions;
+    }
+
     public void setWithmunitions(Double withmunitions) {
         this.withmunitions = withmunitions;
     }
 
+    public Double getWithsteel() {
+        return withsteel;
+    }
+
     public void setWithsteel(Double withsteel) {
         this.withsteel = withsteel;
+    }
+
+    public Double getWithaluminum() {
+        return withaluminum;
     }
 
     public void setWithaluminum(Double withaluminum) {

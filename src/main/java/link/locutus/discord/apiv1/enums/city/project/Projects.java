@@ -1,8 +1,8 @@
 package link.locutus.discord.apiv1.enums.city.project;
 
+import link.locutus.discord.apiv1.enums.ResourceType;
 import link.locutus.discord.db.entities.DBNation;
 import link.locutus.discord.util.StringMan;
-import link.locutus.discord.apiv1.enums.ResourceType;
 
 import java.lang.reflect.Field;
 import java.util.*;
@@ -108,7 +108,27 @@ public class Projects {
             .cost(GASOLINE, 350)
             .cost(MONEY, 8000000)
             .build();
-
+    public static final Project NUCLEAR_RESEARCH_FACILITY = new Builder("nuclear_research_facility", 7)
+            .image("nrf.png")
+            .cost(STEEL, 5000)
+            .cost(GASOLINE, 7500)
+            .cost(MONEY, 50000000)
+            .build();
+    public static final Project PROPAGANDA_BUREAU = new Builder("propaganda_bureau", 12)
+            .image("pb.png")
+            .cost(ALUMINUM, 1500)
+            .cost(MONEY, 15000000)
+            .build();
+    public static final Project SPACE_PROGRAM = new Builder("space_program", 16)
+            .image("space_program.png")
+            .cost(URANIUM, 20000)
+            .cost(OIL, 20000)
+            .cost(IRON, 10000)
+            .cost(GASOLINE, 5000)
+            .cost(STEEL, 1000)
+            .cost(ALUMINUM, 1000)
+            .cost(MONEY, 40000000)
+            .build();
     public static final Project MOON_LANDING = new Builder("moon_landing", 18)
             .image("moon_landing.png")
             .cost(OIL, 5000)
@@ -125,31 +145,6 @@ public class Projects {
                 }
             })
             .build();
-
-    public static final Project NUCLEAR_RESEARCH_FACILITY = new Builder("nuclear_research_facility", 7)
-            .image("nrf.png")
-            .cost(STEEL, 5000)
-            .cost(GASOLINE, 7500)
-            .cost(MONEY, 50000000)
-            .build();
-
-    public static final Project PROPAGANDA_BUREAU = new Builder("propaganda_bureau", 12)
-            .image("pb.png")
-            .cost(ALUMINUM, 1500)
-            .cost(MONEY, 15000000)
-            .build();
-
-    public static final Project SPACE_PROGRAM = new Builder("space_program", 16)
-            .image("space_program.png")
-            .cost(URANIUM, 20000)
-            .cost(OIL, 20000)
-            .cost(IRON, 10000)
-            .cost(GASOLINE, 5000)
-            .cost(STEEL, 1000)
-            .cost(ALUMINUM, 1000)
-            .cost(MONEY, 40000000)
-            .build();
-
     public static final Project SPY_SATELLITE = new Builder("spy_satellite", 17)
             .image("spy_satellite.png")
             .cost(OIL, 10000)
@@ -210,7 +205,11 @@ public class Projects {
             .cost(MONEY, 300000000)
             .requiredProjects(() -> new Project[]{INTERNATIONAL_TRADE_CENTER, URBAN_PLANNING, SPACE_PROGRAM})
             .build();
-
+    public static final Project ARABLE_LAND_AGENCY = new Builder("arable_land_agency", 23)
+            .cost(COAL, 1500)
+            .cost(LEAD, 1500)
+            .cost(MONEY, 3000000)
+            .build();
     public static final Project ADVANCED_ENGINEERING_CORPS = new Builder("advanced_engineering_corps", 26)
             .image("advanced_engineering_corps.jpg")
             .cost(URANIUM, 1000)
@@ -224,13 +223,6 @@ public class Projects {
                 }
             })
             .build();
-
-    public static final Project ARABLE_LAND_AGENCY = new Builder("arable_land_agency", 23)
-            .cost(COAL, 1500)
-            .cost(LEAD, 1500)
-            .cost(MONEY, 3000000)
-            .build();
-
     public static final Project CLINICAL_RESEARCH_CENTER = new Builder("clinical_research_center", 24)
             .cost(FOOD, 100000)
             .cost(MONEY, 10000000)
@@ -316,18 +308,62 @@ public class Projects {
           Steel: 10,000
           Aluminum: 10,000
      */
+    public static final Project[] values;
+
+
+    // Recycling Initiative
+    public static final Map<String, Project> PROJECTS_MAP = new HashMap<>();
+
+    static {
+        try {
+            List<Project> projList = new ArrayList<>();
+            int i = 0;
+            for (Field field : Projects.class.getDeclaredFields()) {
+                Object value = field.get(null);
+                if (value != null && value instanceof Project proj) {
+                    projList.add(proj);
+                    ((AProject) proj).setName(field.getName(), i++);
+                    PROJECTS_MAP.put(field.getName(), proj);
+                }
+            }
+            values = projList.toArray(new Project[0]);
+        } catch (IllegalAccessException e) {
+            e.printStackTrace();
+            throw new RuntimeException(e);
+        }
+    }
 
     public static int getScore() {
         return 20;
     }
 
+    public static Project get(String name) {
+        Project result = PROJECTS_MAP.get(name.replace(" ", "_").toUpperCase());
+        if (result != null) return result;
+        for (Map.Entry<String, Project> entry : PROJECTS_MAP.entrySet()) {
+            if (StringMan.abbreviate(entry.getKey(), '_').equalsIgnoreCase(name)) {
+                return entry.getValue();
+            }
+            if (entry.getKey().replace("_", "").equalsIgnoreCase(name)) {
+                return entry.getValue();
+            }
+        }
+        return null;
+    }
 
-    // Recycling Initiative
+    public static Predicate<Project> hasProjectCached(Predicate<Project> hasProject) {
+        Map<Project, Boolean> cached = new HashMap<>();
+        for (Project project : Projects.values) {
+            cached.put(project, hasProject.test(project));
+        }
+        return cached::get;
+    }
 
     public static class Builder {
         private final int id;
-        private String apiName,imageName;
-        private Map<ResourceType, Double> resources = new EnumMap<>(ResourceType.class);
+        private final String apiName;
+        private final Map<ResourceType, Double> resources = new EnumMap<>(ResourceType.class);
+        private String imageName;
         private ResourceType output;
         private Supplier<Project[]> requiredProjects;
 
@@ -350,7 +386,7 @@ public class Projects {
             return this;
         }
 
-        public Builder output(ResourceType  output) {
+        public Builder output(ResourceType output) {
             this.output = output;
             return this;
         }
@@ -378,49 +414,5 @@ public class Projects {
             this.otherRequirements = requirements;
             return this;
         }
-    }
-
-    public static final Project[] values;
-    public static final Map<String, Project> PROJECTS_MAP = new HashMap<>();
-    static {
-        try {
-            List<Project> projList = new ArrayList<>();
-            int i = 0;
-            for (Field field : Projects.class.getDeclaredFields()) {
-                Object value = field.get(null);
-                if (value != null && value instanceof Project) {
-                    Project proj = (Project) value;
-                    projList.add(proj);
-                    ((AProject) proj).setName(field.getName(), i++);
-                    PROJECTS_MAP.put(field.getName(), proj);
-                }
-            }
-            values = projList.toArray(new Project[0]);
-        } catch (IllegalAccessException e) {
-            e.printStackTrace();
-            throw new RuntimeException(e);
-        }
-    }
-
-    public static Project get(String name) {
-        Project result = PROJECTS_MAP.get(name.replace(" ", "_").toUpperCase());
-        if (result != null) return result;
-        for (Map.Entry<String, Project> entry : PROJECTS_MAP.entrySet()) {
-            if (StringMan.abbreviate(entry.getKey(), '_').equalsIgnoreCase(name)) {
-                return entry.getValue();
-            }
-            if (entry.getKey().replace("_", "").equalsIgnoreCase(name)) {
-                return entry.getValue();
-            }
-        }
-        return null;
-    }
-
-    public static Predicate<Project> hasProjectCached(Predicate<Project> hasProject) {
-        Map<Project, Boolean> cached = new HashMap<>();
-        for (Project project : Projects.values) {
-            cached.put(project, hasProject.test(project));
-        }
-        return cached::get;
     }
 }

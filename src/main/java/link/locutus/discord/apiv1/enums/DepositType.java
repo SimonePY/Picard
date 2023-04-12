@@ -20,7 +20,7 @@ public enum DepositType {
     ;
 
     private final String description;
-    private DepositType parent;
+    private final DepositType parent;
 
     DepositType(String description) {
         this(null, null);

@@ -1,5 +1,17 @@
 package link.locutus.discord.apiv1.enums.city;
 
+import com.google.gson.Gson;
+import com.google.gson.JsonObject;
+import it.unimi.dsi.fastutil.PriorityQueue;
+import it.unimi.dsi.fastutil.objects.ObjectHeapPriorityQueue;
+import link.locutus.discord.apiv1.domains.City;
+import link.locutus.discord.apiv1.enums.Continent;
+import link.locutus.discord.apiv1.enums.ResourceType;
+import link.locutus.discord.apiv1.enums.city.building.*;
+import link.locutus.discord.apiv1.enums.city.building.imp.APowerBuilding;
+import link.locutus.discord.apiv1.enums.city.building.imp.AResourceBuilding;
+import link.locutus.discord.apiv1.enums.city.project.Project;
+import link.locutus.discord.apiv1.enums.city.project.Projects;
 import link.locutus.discord.commands.info.optimal.CityBranch;
 import link.locutus.discord.config.Settings;
 import link.locutus.discord.db.entities.DBNation;
@@ -9,33 +21,9 @@ import link.locutus.discord.util.PnwUtil;
 import link.locutus.discord.util.TimeUtil;
 import link.locutus.discord.util.math.ArrayUtil;
 import link.locutus.discord.util.search.BFSUtil;
-import com.google.gson.Gson;
-import com.google.gson.JsonObject;
-import link.locutus.discord.apiv1.enums.Continent;
-import link.locutus.discord.apiv1.enums.ResourceType;
-import link.locutus.discord.apiv1.enums.city.building.Building;
-import link.locutus.discord.apiv1.enums.city.building.Buildings;
-import link.locutus.discord.apiv1.enums.city.building.CommerceBuilding;
-import link.locutus.discord.apiv1.enums.city.building.MilitaryBuilding;
-import link.locutus.discord.apiv1.enums.city.building.ResourceBuilding;
-import link.locutus.discord.apiv1.enums.city.building.imp.APowerBuilding;
-import link.locutus.discord.apiv1.enums.city.building.imp.AResourceBuilding;
-import link.locutus.discord.apiv1.enums.city.project.Project;
-import link.locutus.discord.apiv1.enums.city.project.Projects;
-import it.unimi.dsi.fastutil.PriorityQueue;
-import it.unimi.dsi.fastutil.objects.ObjectHeapPriorityQueue;
-import link.locutus.discord.apiv1.domains.City;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
-import java.io.IOException;
-import java.util.AbstractMap;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Objects;
+import java.io.*;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -50,145 +38,7 @@ public class JavaCity {
     private long nuke_date;
 
     private Metrics metrics;
-
-    public void clear() {
-        numBuildings = 0;
-        Arrays.fill(buildings, (byte) 0);
-    }
-
-    public void set(JavaCity other, int maxBuildingIndex) {
-//        if (this.metrics != null) {
-//            if (other.metrics != null) {
-//                this.metrics.profit = other.metrics.profit;
-//                this.metrics.population = other.metrics.population;
-//                this.metrics.disease = other.metrics.disease;
-//                this.metrics.crime = other.metrics.crime;
-//                this.metrics.pollution = other.metrics.pollution;
-//                this.metrics.commerce = other.metrics.commerce;
-//            } else {
-//                clearMetrics();
-//            }
-//        }
-//        maxBuildingIndex = Math.min(buildings.length, maxBuildingIndex);
-//        for (int i = 0; i <= maxBuildingIndex; i++) {
-        for (int i = 0; i < buildings.length; i++) {
-            buildings[i] = other.buildings[i];
-        }
-        this.numBuildings = other.numBuildings;
-        this.infra = other.infra;
-        this.dateCreated = other.dateCreated;
-        this.land_ = other.land_;
-        this.nuke_date = other.nuke_date;
-    }
-
-    public void clearMetrics() {
-        if (this.metrics != null) {
-            metrics.commerce = null;
-            metrics.profit = null;
-        }
-    }
-
-    public long getNukeDate() {
-        return nuke_date;
-    }
-
-    public String getMMR() {
-        return get(Buildings.BARRACKS) + "" + get(Buildings.FACTORY) + "" + get(Buildings.HANGAR) + "" + get(Buildings.DRYDOCK);
-    }
-
-    public int[] getMMRArray() {
-        return new int[]{get(Buildings.BARRACKS), get(Buildings.FACTORY), get(Buildings.HANGAR), get(Buildings.DRYDOCK)};
-    }
-
-    public byte[] getBuildings() {
-        return buildings;
-    }
-
-    public static class Metrics {
-        public Integer population;
-        public Double disease;
-        public Double crime;
-        public Integer pollution;
-        public Integer commerce;
-        public Boolean powered;
-        public Double profit;
-
-        public void recalculate(JavaCity city, Predicate<Project> hasProject) {
-            pollution = 0;
-            commerce = 0;
-
-            if (city.nuke_date > 1596163005000L) {
-                double pollutionMax = 400d;
-                int turnsMax = 11 * 12;
-                long turns = TimeUtil.getTurn() - TimeUtil.getTurn(city.nuke_date);
-                if (turns < turnsMax) {
-                    double nukePollution = (turnsMax - turns) * pollutionMax / (turnsMax);
-                    if (nukePollution > 0) {
-                        pollution += (int) nukePollution;
-                    }
-                }
-            }
-
-            for (Building building : Buildings.POLLUTION_BUILDINGS) {
-                int amt = city.buildings[building.ordinal()];
-                if (amt == 0) continue;
-                pollution += amt * building.pollution(hasProject);
-            }
-
-            for (Building building : Buildings.COMMERCE_BUILDINGS) {
-                int amt = city.buildings[building.ordinal()];
-                if (amt == 0) continue;
-                commerce += amt * ((CommerceBuilding) building).commerce();
-            }
-            pollution = Math.max(0, pollution);
-
-            double basePopulation = city.getInfra() * 100;
-
-            int hospitals = city.get(Buildings.HOSPITAL);
-            double hospitalModifier;
-            if (hospitals > 0) {
-                double hospitalPct = hasProject.test(Projects.CLINICAL_RESEARCH_CENTER) ? 3.5 : 2.5;
-                hospitalModifier = hospitals * hospitalPct;
-            } else {
-                hospitalModifier = 0;
-            }
-
-            int police = city.get(Buildings.POLICE_STATION);
-            double policeMod;
-            if (police > 0) {
-                double policePct = hasProject.test(Projects.SPECIALIZED_POLICE_TRAINING_PROGRAM) ? 3.5 : 2.5;
-                policeMod = police * (policePct);
-            } else {
-                policeMod = 0;
-            }
-
-            double pollutionModifier = pollution * 0.05;
-            disease = Math.max(0, ((0.01 * MathMan.sqr((city.getInfra() * 100) / (city.getLand() + 0.001)) - 25) * 0.01d) + (city.getInfra() * 0.001) - hospitalModifier + pollutionModifier);
-
-            double diseaseDeaths = ((disease * 0.01) * basePopulation);
-
-            crime = Math.max(0, ((MathMan.sqr(103 - commerce) + (city.getInfra() * 100))*(0.000009d) - policeMod));
-            double crimeDeaths = Math.max((crime * 0.1) * (100 * city.getInfra()) - 25, 0);
-
-            double ageBonus = (1 + Math.log(Math.max(1, city.getAge())) * 0.0666666666666666666666666666666);
-            population = (int) Math.round(Math.max(10, ((basePopulation - diseaseDeaths - crimeDeaths) * ageBonus)));
-        }
-    }
-
-    public Metrics getCachedMetrics() {
-        return metrics;
-    }
-
-    public Metrics getMetrics(Predicate<Project> hasProject) {
-        if (metrics == null) {
-            metrics = new Metrics();
-        }
-        if (metrics.commerce == null) {
-
-            metrics.recalculate(this, hasProject);
-        }
-        return metrics;
-    }
+    private transient int hashCode = 0;
 
     public JavaCity(String json) {
         this(CityBuild.of(json));
@@ -247,121 +97,6 @@ public class JavaCity {
         dateCreated = Long.MAX_VALUE;
         land_ = 0d;
         this.numBuildings = 0;
-    }
-
-    public byte[] toBytes() {
-        try {
-            ByteArrayOutputStream out = new ByteArrayOutputStream();
-            DataOutputStream dos = new DataOutputStream(out);
-            dos.writeInt((int) (getInfra() * 100));
-            dos.writeInt((int) (getLand() * 100));
-            for (int i = 0; i < buildings.length; i++) {
-                if (buildings[i] != 0) {
-                    dos.writeByte(i);
-                    dos.writeByte(buildings[i]);
-                }
-            }
-            return out.toByteArray();
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    public static JavaCity fromBytes(byte[] data) {
-        DataInputStream is = new DataInputStream(new ByteArrayInputStream(data));
-        JavaCity city = new JavaCity();
-        try {
-            city.setInfra(is.readInt() / 100d);
-            city.setLand(is.readInt() / 100d);
-            int type;
-            while ((type = is.read()) != -1) {
-                city.buildings[type] = is.readByte();
-            }
-            return city;
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    public String instructions(int cityId, JavaCity from, double[] total) {
-        HashMap<Integer, JavaCity> map = new HashMap<>();
-        map.put(cityId, from);
-        return instructions(map, total);
-    }
-
-    public String instructions(Map<Integer, JavaCity> fromMap, double[] total) {
-
-        Map<Integer, Double> landPurchases = new HashMap<>();
-        Map<Integer, Double> infraPurchases = new HashMap<>();
-
-        for (Map.Entry<Integer, JavaCity> entry : fromMap.entrySet()) {
-            JavaCity from = entry.getValue();
-            total = ArrayUtil.apply(ArrayUtil.DOUBLE_ADD, total, this.calculateCost(from));
-            if (getLand() != null && getLand() > from.getLand()) {
-                landPurchases.put(entry.getKey(), getLand());
-            }
-            if (getInfra() > from.getInfra()) {
-                infraPurchases.put(entry.getKey(), getInfra());
-            }
-        }
-
-        StringBuilder response = new StringBuilder();
-        int i = 0;
-        response.append(++i+". Ensure you have the following resources:");
-        Map<ResourceType, Double> totalMap = PnwUtil.resourcesToMap(total);
-        if (!totalMap.isEmpty()) response.append('\n').append("```" + PnwUtil.resourcesToString(totalMap) + "```");
-        if (!infraPurchases.isEmpty()) {
-            for (Map.Entry<Integer, Double> entry : infraPurchases.entrySet()) {
-                if (entry.getValue() > 0) {
-                    response.append('\n').append(++i + ". (to buy) Enter @" + getInfra() + " infra in <" + Settings.INSTANCE.PNW_URL() + "/city/id=" + entry.getKey() + ">");
-                }
-            }
-        }
-
-        if (!landPurchases.isEmpty()) {
-            for (Map.Entry<Integer, Double> entry : landPurchases.entrySet()) {
-                if (entry.getValue() > 0) {
-                    response.append('\n').append(++i + ". (to buy) Enter @" + getLand() + " land in <" + Settings.INSTANCE.PNW_URL() + "/city/id=" + entry.getKey() + ">");
-                }
-            }
-        }
-        response.append('\n').append(++i+". Go to <" + Settings.INSTANCE.PNW_URL() + "/city/improvements/bulk-import/>");
-        response.append('\n').append(++i+". Copy the following build:");
-        response.append("```").append(toCityBuild().toString()).append("```");
-        response.append('\n').append(++i+". Check the checkbox and click the submit import button");
-        response.append('\n').append(++i+". If you are missing any resources or money, obtain them and try again");
-
-        if (!infraPurchases.isEmpty()) {
-            for (Map.Entry<Integer, Double> entry : infraPurchases.entrySet()) {
-                if (entry.getValue() < 0) {
-                    response.append('\n').append(++i + ". (to sell) Enter @" + getInfra() + " infra in <" + Settings.INSTANCE.PNW_URL() + "/city/id=" + entry.getKey() + ">");
-                }
-            }
-        }
-
-        response.append('\n').append("7. Repurchase military units.");
-
-        return response.toString().trim();
-    }
-
-    public String toJson() {
-        JsonObject object = new JsonObject();
-
-        Map<String, String> json = new HashMap<>();
-        json.put("infra_needed", getRequiredInfra() + "");
-        json.put("imp_total", getImpTotal() + "");
-        for (int ordinal = 0; ordinal < buildings.length; ordinal++) {
-            int amt = buildings[ordinal];
-            if (amt == 0) continue;
-
-            json.put(Buildings.get(ordinal).nameSnakeCase(), amt + "");
-        }
-
-        return new Gson().toJson(json);
-    }
-
-    public CityBuild toCityBuild() {
-        return CityBuild.of(toJson());
     }
 
     public JavaCity(City city) {
@@ -423,7 +158,186 @@ public class JavaCity {
         this.land_ = other.land_;
     }
 
-    private transient int hashCode = 0;
+    public static JavaCity fromBytes(byte[] data) {
+        DataInputStream is = new DataInputStream(new ByteArrayInputStream(data));
+        JavaCity city = new JavaCity();
+        try {
+            city.setInfra(is.readInt() / 100d);
+            city.setLand(is.readInt() / 100d);
+            int type;
+            while ((type = is.read()) != -1) {
+                city.buildings[type] = is.readByte();
+            }
+            return city;
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public void clear() {
+        numBuildings = 0;
+        Arrays.fill(buildings, (byte) 0);
+    }
+
+    public void set(JavaCity other, int maxBuildingIndex) {
+//        if (this.metrics != null) {
+//            if (other.metrics != null) {
+//                this.metrics.profit = other.metrics.profit;
+//                this.metrics.population = other.metrics.population;
+//                this.metrics.disease = other.metrics.disease;
+//                this.metrics.crime = other.metrics.crime;
+//                this.metrics.pollution = other.metrics.pollution;
+//                this.metrics.commerce = other.metrics.commerce;
+//            } else {
+//                clearMetrics();
+//            }
+//        }
+//        maxBuildingIndex = Math.min(buildings.length, maxBuildingIndex);
+//        for (int i = 0; i <= maxBuildingIndex; i++) {
+        System.arraycopy(other.buildings, 0, buildings, 0, buildings.length);
+        this.numBuildings = other.numBuildings;
+        this.infra = other.infra;
+        this.dateCreated = other.dateCreated;
+        this.land_ = other.land_;
+        this.nuke_date = other.nuke_date;
+    }
+
+    public void clearMetrics() {
+        if (this.metrics != null) {
+            metrics.commerce = null;
+            metrics.profit = null;
+        }
+    }
+
+    public long getNukeDate() {
+        return nuke_date;
+    }
+
+    public String getMMR() {
+        return get(Buildings.BARRACKS) + "" + get(Buildings.FACTORY) + "" + get(Buildings.HANGAR) + "" + get(Buildings.DRYDOCK);
+    }
+
+    public int[] getMMRArray() {
+        return new int[]{get(Buildings.BARRACKS), get(Buildings.FACTORY), get(Buildings.HANGAR), get(Buildings.DRYDOCK)};
+    }
+
+    public byte[] getBuildings() {
+        return buildings;
+    }
+
+    public Metrics getCachedMetrics() {
+        return metrics;
+    }
+
+    public Metrics getMetrics(Predicate<Project> hasProject) {
+        if (metrics == null) {
+            metrics = new Metrics();
+        }
+        if (metrics.commerce == null) {
+
+            metrics.recalculate(this, hasProject);
+        }
+        return metrics;
+    }
+
+    public byte[] toBytes() {
+        try {
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            DataOutputStream dos = new DataOutputStream(out);
+            dos.writeInt((int) (getInfra() * 100));
+            dos.writeInt((int) (getLand() * 100));
+            for (int i = 0; i < buildings.length; i++) {
+                if (buildings[i] != 0) {
+                    dos.writeByte(i);
+                    dos.writeByte(buildings[i]);
+                }
+            }
+            return out.toByteArray();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public String instructions(int cityId, JavaCity from, double[] total) {
+        HashMap<Integer, JavaCity> map = new HashMap<>();
+        map.put(cityId, from);
+        return instructions(map, total);
+    }
+
+    public String instructions(Map<Integer, JavaCity> fromMap, double[] total) {
+
+        Map<Integer, Double> landPurchases = new HashMap<>();
+        Map<Integer, Double> infraPurchases = new HashMap<>();
+
+        for (Map.Entry<Integer, JavaCity> entry : fromMap.entrySet()) {
+            JavaCity from = entry.getValue();
+            total = ArrayUtil.apply(ArrayUtil.DOUBLE_ADD, total, this.calculateCost(from));
+            if (getLand() != null && getLand() > from.getLand()) {
+                landPurchases.put(entry.getKey(), getLand());
+            }
+            if (getInfra() > from.getInfra()) {
+                infraPurchases.put(entry.getKey(), getInfra());
+            }
+        }
+
+        StringBuilder response = new StringBuilder();
+        int i = 0;
+        response.append(++i + ". Ensure you have the following resources:");
+        Map<ResourceType, Double> totalMap = PnwUtil.resourcesToMap(total);
+        if (!totalMap.isEmpty()) response.append('\n').append("```" + PnwUtil.resourcesToString(totalMap) + "```");
+        if (!infraPurchases.isEmpty()) {
+            for (Map.Entry<Integer, Double> entry : infraPurchases.entrySet()) {
+                if (entry.getValue() > 0) {
+                    response.append('\n').append(++i + ". (to buy) Enter @" + getInfra() + " infra in <" + Settings.INSTANCE.PNW_URL() + "/city/id=" + entry.getKey() + ">");
+                }
+            }
+        }
+
+        if (!landPurchases.isEmpty()) {
+            for (Map.Entry<Integer, Double> entry : landPurchases.entrySet()) {
+                if (entry.getValue() > 0) {
+                    response.append('\n').append(++i + ". (to buy) Enter @" + getLand() + " land in <" + Settings.INSTANCE.PNW_URL() + "/city/id=" + entry.getKey() + ">");
+                }
+            }
+        }
+        response.append('\n').append(++i + ". Go to <" + Settings.INSTANCE.PNW_URL() + "/city/improvements/bulk-import/>");
+        response.append('\n').append(++i + ". Copy the following build:");
+        response.append("```").append(toCityBuild().toString()).append("```");
+        response.append('\n').append(++i + ". Check the checkbox and click the submit import button");
+        response.append('\n').append(++i + ". If you are missing any resources or money, obtain them and try again");
+
+        if (!infraPurchases.isEmpty()) {
+            for (Map.Entry<Integer, Double> entry : infraPurchases.entrySet()) {
+                if (entry.getValue() < 0) {
+                    response.append('\n').append(++i + ". (to sell) Enter @" + getInfra() + " infra in <" + Settings.INSTANCE.PNW_URL() + "/city/id=" + entry.getKey() + ">");
+                }
+            }
+        }
+
+        response.append('\n').append("7. Repurchase military units.");
+
+        return response.toString().trim();
+    }
+
+    public String toJson() {
+        JsonObject object = new JsonObject();
+
+        Map<String, String> json = new HashMap<>();
+        json.put("infra_needed", getRequiredInfra() + "");
+        json.put("imp_total", getImpTotal() + "");
+        for (int ordinal = 0; ordinal < buildings.length; ordinal++) {
+            int amt = buildings[ordinal];
+            if (amt == 0) continue;
+
+            json.put(Buildings.get(ordinal).nameSnakeCase(), amt + "");
+        }
+
+        return new Gson().toJson(json);
+    }
+
+    public CityBuild toCityBuild() {
+        return CityBuild.of(toJson());
+    }
 
     @Override
     public boolean equals(Object o) {
@@ -606,7 +520,7 @@ public class JavaCity {
                 };
             }
 
-            if (building instanceof ResourceBuilding && !((ResourceBuilding) building).canBuild(continent)) {
+            if (building instanceof ResourceBuilding && !building.canBuild(continent)) {
                 throw new IllegalArgumentException("Cannot build: " + building.nameSnakeCase() + " on " + continent.name()) {
                     @Override
                     public Throwable fillInStackTrace() {
@@ -686,7 +600,7 @@ public class JavaCity {
 
         double newPlayerBonus = numCities < 10 ? Math.max(1, (200d - ((numCities - 1) * 10d)) * 0.01) : 1;
 
-        double income = Math.max(0, (((commerce * 0.02) * 0.725) + 0.725) * metrics.population * newPlayerBonus) * grossModifier;;
+        double income = Math.max(0, (((commerce * 0.02) * 0.725) + 0.725) * metrics.population * newPlayerBonus) * grossModifier;
 
 
         profit += income;
@@ -737,7 +651,7 @@ public class JavaCity {
 
         double newPlayerBonus = Math.max(1, (200d - ((numCities - 1) * 10d)) / 100d);
 
-        double income = (((commerce/50d) * 0.725d) + 0.725d) * metrics.population * newPlayerBonus * grossModifier;
+        double income = (((commerce / 50d) * 0.725d) + 0.725d) * metrics.population * newPlayerBonus * grossModifier;
 
         profitBuffer[ResourceType.MONEY.ordinal()] += income * turns / 12;
 
@@ -745,7 +659,6 @@ public class JavaCity {
 
         return profitBuffer;
     }
-
 
     public double[] calculateCost(JavaCity from) {
         return calculateCost(from, new double[ResourceType.values.length]);
@@ -842,9 +755,19 @@ public class JavaCity {
         return infra;
     }
 
+    public JavaCity setInfra(double infra) {
+        this.infra = infra;
+        return this;
+    }
+
     public int getAge() {
         if (dateCreated <= 0) return 0;
         return (int) TimeUnit.MILLISECONDS.toDays(System.currentTimeMillis() - dateCreated);
+    }
+
+    public JavaCity setAge(Integer age) {
+        this.dateCreated = System.currentTimeMillis() - TimeUnit.DAYS.toMillis(age);
+        return this;
     }
 
     public double getFreeInfra() {
@@ -858,15 +781,6 @@ public class JavaCity {
     public Double getLand() {
         if (land_ <= 0) return infra;
         return land_;
-    }
-    public JavaCity setInfra(double infra) {
-        this.infra = infra;
-        return this;
-    }
-
-    public JavaCity setAge(Integer age) {
-        this.dateCreated = System.currentTimeMillis() - TimeUnit.DAYS.toMillis(age);
-        return this;
     }
 
     public JavaCity setLand(Double land) {
@@ -920,5 +834,76 @@ public class JavaCity {
 
     public void setPowered(Predicate<Project> hasProject, Boolean powered) {
         getMetrics(hasProject).powered = powered;
+    }
+
+    public static class Metrics {
+        public Integer population;
+        public Double disease;
+        public Double crime;
+        public Integer pollution;
+        public Integer commerce;
+        public Boolean powered;
+        public Double profit;
+
+        public void recalculate(JavaCity city, Predicate<Project> hasProject) {
+            pollution = 0;
+            commerce = 0;
+
+            if (city.nuke_date > 1596163005000L) {
+                double pollutionMax = 400d;
+                int turnsMax = 11 * 12;
+                long turns = TimeUtil.getTurn() - TimeUtil.getTurn(city.nuke_date);
+                if (turns < turnsMax) {
+                    double nukePollution = (turnsMax - turns) * pollutionMax / (turnsMax);
+                    if (nukePollution > 0) {
+                        pollution += (int) nukePollution;
+                    }
+                }
+            }
+
+            for (Building building : Buildings.POLLUTION_BUILDINGS) {
+                int amt = city.buildings[building.ordinal()];
+                if (amt == 0) continue;
+                pollution += amt * building.pollution(hasProject);
+            }
+
+            for (Building building : Buildings.COMMERCE_BUILDINGS) {
+                int amt = city.buildings[building.ordinal()];
+                if (amt == 0) continue;
+                commerce += amt * ((CommerceBuilding) building).commerce();
+            }
+            pollution = Math.max(0, pollution);
+
+            double basePopulation = city.getInfra() * 100;
+
+            int hospitals = city.get(Buildings.HOSPITAL);
+            double hospitalModifier;
+            if (hospitals > 0) {
+                double hospitalPct = hasProject.test(Projects.CLINICAL_RESEARCH_CENTER) ? 3.5 : 2.5;
+                hospitalModifier = hospitals * hospitalPct;
+            } else {
+                hospitalModifier = 0;
+            }
+
+            int police = city.get(Buildings.POLICE_STATION);
+            double policeMod;
+            if (police > 0) {
+                double policePct = hasProject.test(Projects.SPECIALIZED_POLICE_TRAINING_PROGRAM) ? 3.5 : 2.5;
+                policeMod = police * (policePct);
+            } else {
+                policeMod = 0;
+            }
+
+            double pollutionModifier = pollution * 0.05;
+            disease = Math.max(0, ((0.01 * MathMan.sqr((city.getInfra() * 100) / (city.getLand() + 0.001)) - 25) * 0.01d) + (city.getInfra() * 0.001) - hospitalModifier + pollutionModifier);
+
+            double diseaseDeaths = ((disease * 0.01) * basePopulation);
+
+            crime = Math.max(0, ((MathMan.sqr(103 - commerce) + (city.getInfra() * 100)) * (0.000009d) - policeMod));
+            double crimeDeaths = Math.max((crime * 0.1) * (100 * city.getInfra()) - 25, 0);
+
+            double ageBonus = (1 + Math.log(Math.max(1, city.getAge())) * 0.0666666666666666666666666666666);
+            population = (int) Math.round(Math.max(10, ((basePopulation - diseaseDeaths - crimeDeaths) * ageBonus)));
+        }
     }
 }

@@ -2,15 +2,15 @@ package link.locutus.discord.apiv1.domains.subdomains;
 
 import com.politicsandwar.graphql.model.WarAttack;
 import link.locutus.discord.Locutus;
+import link.locutus.discord.apiv1.enums.AttackType;
+import link.locutus.discord.apiv1.enums.MilitaryUnit;
+import link.locutus.discord.apiv1.enums.ResourceType;
 import link.locutus.discord.config.Settings;
 import link.locutus.discord.db.entities.DBAlliance;
 import link.locutus.discord.db.entities.DBNation;
 import link.locutus.discord.util.MathMan;
 import link.locutus.discord.util.PnwUtil;
 import link.locutus.discord.util.TimeUtil;
-import link.locutus.discord.apiv1.enums.AttackType;
-import link.locutus.discord.apiv1.enums.MilitaryUnit;
-import link.locutus.discord.apiv1.enums.ResourceType;
 
 import java.util.Collections;
 import java.util.HashMap;
@@ -22,6 +22,20 @@ import java.util.regex.Pattern;
 import static link.locutus.discord.util.TimeUtil.YYYY_MM_DD_HH_MM_SS;
 
 public class DBAttack {
+    private static final Pattern RSS_PATTERN;
+    private static final Pattern PERCENT_PATTERN;
+    private static final double intOverflow = 2147483647 / 100d;
+
+    static {
+        String regex = "([0-9|,]+) ([0-9|,]+) coal, ([0-9|,]+) oil,[ |\\r?\\n]+" +
+                "([0-9|,]+) uranium, ([0-9|,]+) iron, ([0-9|,]+) bauxite, ([0-9|,]+) lead, ([0-9|,]+)[ |\\r?\\n]+" +
+                "gasoline, ([0-9|,]+) munitions, ([0-9|,]+) steel, ([0-9|,]+) aluminum, and[ |\\r?\\n]+" +
+                "([0-9|,]+) food";
+        RSS_PATTERN = Pattern.compile(regex);
+
+        PERCENT_PATTERN = Pattern.compile("([0-9]+\\.[0-9]+)%");
+    }
+
     public int war_attack_id;
     public long epoch;
     public int war_id;
@@ -35,7 +49,7 @@ public class DBAttack {
     public int defcas1;
     public int defcas2;
     public int defcas3;
-//    public int city_id; // Not used
+    //    public int city_id; // Not used
     public double infra_destroyed;
     public int improvements_destroyed;
     public double money_looted;
@@ -48,11 +62,11 @@ public class DBAttack {
     public double att_mun_used;
     public double def_gas_used;
     public double def_mun_used;
-
     public double infraPercent_cached;
     public int city_cached;
 
-    public DBAttack() {}
+    public DBAttack() {
+    }
 
     public DBAttack(int war_attack_id, long epoch, int war_id, int attacker_nation_id, int defender_nation_id, AttackType attack_type, int victor, int success, int attcas1, int attcas2, int defcas1, int defcas2, int defcas3,
                     double infra_destroyed, int improvements_destroyed, double money_looted, String note, double city_infra_before, double infra_destroyed_value, double att_gas_used, double att_mun_used, double def_gas_used, double def_mun_used) {
@@ -92,30 +106,134 @@ public class DBAttack {
 
     public DBAttack(WarAttack a) {
         this(a.getId(),
-        a.getDate().toEpochMilli(),
-        a.getWar_id(),
-        a.getAtt_id(),
-        a.getDef_id(),
-        AttackType.fromV3(a.getType()),
-        a.getVictor(),
-        a.getSuccess(),
-        a.getAttcas1(),
-        a.getAttcas2(),
-        a.getDefcas1(),
-        a.getDefcas2(),
-        a.getAircraft_killed_by_tanks(),
-        a.getInfra_destroyed(),
-        a.getImprovements_lost(),
-        a.getMoney_stolen(),
-        a.getLoot_info(),
-        a.getCity_infra_before(),
-        a.getInfra_destroyed_value(),
-        a.getAtt_gas_used(),
-        a.getAtt_mun_used(),
-        a.getDef_gas_used(),
-        a.getDef_mun_used());
+                a.getDate().toEpochMilli(),
+                a.getWar_id(),
+                a.getAtt_id(),
+                a.getDef_id(),
+                AttackType.fromV3(a.getType()),
+                a.getVictor(),
+                a.getSuccess(),
+                a.getAttcas1(),
+                a.getAttcas2(),
+                a.getDefcas1(),
+                a.getDefcas2(),
+                a.getAircraft_killed_by_tanks(),
+                a.getInfra_destroyed(),
+                a.getImprovements_lost(),
+                a.getMoney_stolen(),
+                a.getLoot_info(),
+                a.getCity_infra_before(),
+                a.getInfra_destroyed_value(),
+                a.getAtt_gas_used(),
+                a.getAtt_mun_used(),
+                a.getDef_gas_used(),
+                a.getDef_mun_used());
 
         if (a.getCity_id() != null) this.city_cached = a.getCity_id();
+    }
+
+    public DBAttack(WarAttacksContainer container) {
+        this(Integer.parseInt(container.getWarAttackId()),
+                TimeUtil.parseDate(YYYY_MM_DD_HH_MM_SS, container.getDate()),
+                Integer.parseInt(container.getWarId()),
+                Integer.parseInt(container.getAttackerNationId()),
+                Integer.parseInt(container.getDefenderNationId()),
+                AttackType.get(container.getAttackType().toUpperCase()),
+                Integer.parseInt(container.getVictor()),
+                Integer.parseInt(container.getSuccess()),
+                Integer.parseInt(container.getAttcas1()),
+                Integer.parseInt(container.getAttcas2()),
+                Integer.parseInt(container.getDefcas1()),
+                Integer.parseInt(container.getDefcas2()),
+                (int) container.getAircraftKilledByTanks(),
+//                        Integer.parseInt(container.getCityId()),
+                MathMan.parseDoubleDef0(container.getInfraDestroyed()),
+                MathMan.parseIntDef0(container.getImprovementsDestroyed()),
+                MathMan.parseDoubleDef0(container.getMoneyLooted()),
+                container.getNote(),
+                MathMan.parseDoubleDef0(container.getCityInfraBefore()),
+                MathMan.parseDoubleDef0(container.getInfraDestroyedValue()),
+                MathMan.parseDoubleDef0(container.getAttGasUsed()),
+                MathMan.parseDoubleDef0(container.getAttMunUsed()),
+                MathMan.parseDoubleDef0(container.getDefGasUsed()),
+                MathMan.parseDoubleDef0(container.getDefMunUsed())
+        );
+    }
+
+    private static double parseBankLoot(String input, AtomicInteger allianceIdOutput, double[] resourceOutput) {
+        String[] split = input.split(" looted [0-9]+\\.[0-9]+% of ", 2);
+        String attacker = split[0];
+
+        split = split[1].split("'s alliance bank, taking: \\$", 2);
+        String bank = split[0];
+
+        double[] rss = parseRss(split[1], resourceOutput);
+
+        Matcher matcher = PERCENT_PATTERN.matcher(input);
+        matcher.matches();
+        matcher.groupCount();
+        matcher.find();
+        double percent = Math.max(0.01, Double.parseDouble(matcher.group(1))) / 100d;
+
+        DBAlliance alliance = Locutus.imp().getNationDB().getAllianceByName(bank);
+        allianceIdOutput.set(alliance != null ? alliance.getId() : 0);
+        return percent;
+    }
+
+    private static double[] parseNationLoot(String input, double[] resourceOutput) {
+        String[] split = input.split(" won the war and looted ", 2);
+        String attacker = split[0];
+
+        return parseRss(split[1], resourceOutput);
+    }
+
+    public static synchronized double[] parseRss(String input, double[] resourceOutput) {
+        if (resourceOutput == null) {
+            resourceOutput = new double[ResourceType.values.length];
+        }
+
+        Matcher matcher = RSS_PATTERN.matcher(input.toLowerCase());
+        matcher.matches();
+        matcher.groupCount();
+        matcher.find();
+        String moneyStr;
+        try {
+            moneyStr = matcher.group(1);
+        } catch (Throwable e) {
+            e.printStackTrace();
+//            throw e;
+            return resourceOutput;
+        }
+        double money = MathMan.parseDouble(moneyStr.substring(0, moneyStr.length() - 1));
+        double coal = MathMan.parseDouble(matcher.group(2));
+        double oil = MathMan.parseDouble(matcher.group(3));
+        double uranium = MathMan.parseDouble(matcher.group(4));
+        double iron = MathMan.parseDouble(matcher.group(5));
+        double bauxite = MathMan.parseDouble(matcher.group(6));
+        double lead = MathMan.parseDouble(matcher.group(7));
+        double gasoline = MathMan.parseDouble(matcher.group(8));
+        double munitions = MathMan.parseDouble(matcher.group(9));
+        double steel = MathMan.parseDouble(matcher.group(10));
+        double aluminum = MathMan.parseDouble(matcher.group(11));
+        double food = MathMan.parseDouble(matcher.group(12));
+
+        resourceOutput[ResourceType.MONEY.ordinal()] = money;
+        resourceOutput[ResourceType.COAL.ordinal()] = coal;
+        resourceOutput[ResourceType.OIL.ordinal()] = oil;
+        resourceOutput[ResourceType.URANIUM.ordinal()] = uranium;
+        resourceOutput[ResourceType.IRON.ordinal()] = iron;
+        resourceOutput[ResourceType.BAUXITE.ordinal()] = bauxite;
+        resourceOutput[ResourceType.LEAD.ordinal()] = lead;
+        resourceOutput[ResourceType.GASOLINE.ordinal()] = gasoline;
+        resourceOutput[ResourceType.MUNITIONS.ordinal()] = munitions;
+        resourceOutput[ResourceType.STEEL.ordinal()] = steel;
+        resourceOutput[ResourceType.ALUMINUM.ordinal()] = aluminum;
+        resourceOutput[ResourceType.FOOD.ordinal()] = food;
+        for (int i = 0; i < resourceOutput.length; i++) {
+            if (resourceOutput[i] < 0) resourceOutput[i] = 0;
+        }
+
+        return resourceOutput;
     }
 
     public Map<ResourceType, Double> getLoot() {
@@ -203,124 +321,6 @@ public class DBAttack {
         return lootPercent;
     }
 
-    private static double parseBankLoot(String input, AtomicInteger allianceIdOutput, double[] resourceOutput) {
-        String[] split = input.split(" looted [0-9]+\\.[0-9]+% of ", 2);
-        String attacker = split[0];
-
-        split = split[1].split("'s alliance bank, taking: \\$", 2);
-        String bank = split[0];
-
-        double[] rss = parseRss(split[1], resourceOutput);
-
-        Matcher matcher = PERCENT_PATTERN.matcher(input);
-        matcher.matches();
-        matcher.groupCount();
-        matcher.find();
-        double percent = Math.max(0.01, Double.parseDouble(matcher.group(1))) / 100d;
-
-        DBAlliance alliance = Locutus.imp().getNationDB().getAllianceByName(bank);
-        allianceIdOutput.set(alliance != null ? alliance.getId() : 0);
-        return percent;
-    }
-
-    private static double[] parseNationLoot(String input, double[] resourceOutput) {
-        String[] split = input.split(" won the war and looted ", 2);
-        String attacker = split[0];
-
-        return parseRss(split[1], resourceOutput);
-    }
-
-    private static final Pattern RSS_PATTERN;
-    private static final Pattern PERCENT_PATTERN;
-
-
-    static {
-        String regex = "([0-9|,]+) ([0-9|,]+) coal, ([0-9|,]+) oil,[ |\\r?\\n]+" +
-                "([0-9|,]+) uranium, ([0-9|,]+) iron, ([0-9|,]+) bauxite, ([0-9|,]+) lead, ([0-9|,]+)[ |\\r?\\n]+" +
-                "gasoline, ([0-9|,]+) munitions, ([0-9|,]+) steel, ([0-9|,]+) aluminum, and[ |\\r?\\n]+" +
-                "([0-9|,]+) food";
-        RSS_PATTERN = Pattern.compile(regex);
-
-        PERCENT_PATTERN = Pattern.compile("([0-9]+\\.[0-9]+)%");
-    }
-
-    public static synchronized double[] parseRss(String input, double[] resourceOutput) {
-        if (resourceOutput == null) {
-            resourceOutput = new double[ResourceType.values.length];
-        }
-
-        Matcher matcher = RSS_PATTERN.matcher(input.toLowerCase());
-        matcher.matches();
-        matcher.groupCount();
-        matcher.find();
-        String moneyStr;
-        try {
-            moneyStr = matcher.group(1);
-        } catch (Throwable e) {
-            e.printStackTrace();
-//            throw e;
-            return resourceOutput;
-        }
-        double money = MathMan.parseDouble(moneyStr.substring(0, moneyStr.length() - 1));
-        double coal = MathMan.parseDouble(matcher.group(2));
-        double oil = MathMan.parseDouble(matcher.group(3));
-        double uranium = MathMan.parseDouble(matcher.group(4));
-        double iron = MathMan.parseDouble(matcher.group(5));
-        double bauxite = MathMan.parseDouble(matcher.group(6));
-        double lead = MathMan.parseDouble(matcher.group(7));
-        double gasoline = MathMan.parseDouble(matcher.group(8));
-        double munitions = MathMan.parseDouble(matcher.group(9));
-        double steel = MathMan.parseDouble(matcher.group(10));
-        double aluminum = MathMan.parseDouble(matcher.group(11));
-        double food = MathMan.parseDouble(matcher.group(12));
-
-        resourceOutput[ResourceType.MONEY.ordinal()] = money;
-        resourceOutput[ResourceType.COAL.ordinal()] = coal;
-        resourceOutput[ResourceType.OIL.ordinal()] = oil;
-        resourceOutput[ResourceType.URANIUM.ordinal()] = uranium;
-        resourceOutput[ResourceType.IRON.ordinal()] = iron;
-        resourceOutput[ResourceType.BAUXITE.ordinal()] = bauxite;
-        resourceOutput[ResourceType.LEAD.ordinal()] = lead;
-        resourceOutput[ResourceType.GASOLINE.ordinal()] = gasoline;
-        resourceOutput[ResourceType.MUNITIONS.ordinal()] = munitions;
-        resourceOutput[ResourceType.STEEL.ordinal()] = steel;
-        resourceOutput[ResourceType.ALUMINUM.ordinal()] = aluminum;
-        resourceOutput[ResourceType.FOOD.ordinal()] = food;
-        for (int i = 0; i < resourceOutput.length; i++) {
-            if (resourceOutput[i] < 0) resourceOutput[i] = 0;
-        }
-
-        return resourceOutput;
-    }
-
-    public DBAttack(WarAttacksContainer container) {
-        this(Integer.parseInt(container.getWarAttackId()),
-                TimeUtil.parseDate(YYYY_MM_DD_HH_MM_SS, container.getDate()),
-                Integer.parseInt(container.getWarId()),
-                Integer.parseInt(container.getAttackerNationId()),
-                Integer.parseInt(container.getDefenderNationId()),
-                        AttackType.get(container.getAttackType().toUpperCase()),
-                        Integer.parseInt(container.getVictor()),
-                        Integer.parseInt(container.getSuccess()),
-                        Integer.parseInt(container.getAttcas1()),
-                        Integer.parseInt(container.getAttcas2()),
-                        Integer.parseInt(container.getDefcas1()),
-                        Integer.parseInt(container.getDefcas2()),
-                        (int) container.getAircraftKilledByTanks(),
-//                        Integer.parseInt(container.getCityId()),
-                        MathMan.parseDoubleDef0(container.getInfraDestroyed()),
-                        MathMan.parseIntDef0(container.getImprovementsDestroyed()),
-                        MathMan.parseDoubleDef0(container.getMoneyLooted()),
-                        container.getNote(),
-                        MathMan.parseDoubleDef0(container.getCityInfraBefore()),
-                        MathMan.parseDoubleDef0(container.getInfraDestroyedValue()),
-                        MathMan.parseDoubleDef0(container.getAttGasUsed()),
-                        MathMan.parseDoubleDef0(container.getAttMunUsed()),
-                        MathMan.parseDoubleDef0(container.getDefGasUsed()),
-                        MathMan.parseDoubleDef0(container.getDefMunUsed())
-        );
-    }
-
     public Map<MilitaryUnit, Integer> getUnitLosses(boolean attacker) {
         if (attack_type == AttackType.NUKE || attack_type == AttackType.MISSILE) {
             victor = attacker_nation_id;
@@ -345,8 +345,6 @@ public class DBAttack {
     public Map<ResourceType, Double> getLosses(boolean attacker) {
         return getLosses(attacker, true, true, true, true);
     }
-
-    private static double intOverflow = 2147483647 / 100d;
 
     public Map<ResourceType, Double> getLosses(boolean attacker, boolean units, boolean infra, boolean consumption, boolean includeLoot) {
         if ((attack_type == AttackType.NUKE || attack_type == AttackType.MISSILE) && success == 0) {
@@ -379,8 +377,7 @@ public class DBAttack {
                     } else if (attacker ? victor == defender_nation_id : victor == attacker_nation_id) {
                         losses = PnwUtil.addResourcesToA(losses, lootDouble);
                     }
-                }
-                else if (money_looted != 0) {
+                } else if (money_looted != 0) {
                     int sign = (victor == (attacker ? attacker_nation_id : defender_nation_id)) ? -1 : 1;
                     losses.put(ResourceType.MONEY, losses.getOrDefault(ResourceType.MONEY, 0d) + money_looted * sign);
                 }

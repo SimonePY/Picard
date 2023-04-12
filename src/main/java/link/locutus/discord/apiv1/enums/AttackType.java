@@ -1,11 +1,8 @@
 package link.locutus.discord.apiv1.enums;
 
-import it.unimi.dsi.fastutil.objects.Object2ByteArrayMap;
-import it.unimi.dsi.fastutil.objects.Object2ByteMap;
-import it.unimi.dsi.fastutil.objects.Object2ByteMaps;
-import org.checkerframework.checker.units.qual.A;
-
-import java.util.*;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 
 public enum AttackType {
     GROUND(3, 10, MilitaryUnit.SOLDIER, MilitaryUnit.TANK, MilitaryUnit.AIRCRAFT),
@@ -23,6 +20,23 @@ public enum AttackType {
     MISSILE(8, 18, MilitaryUnit.MISSILE),
     NUKE(12, 25, MilitaryUnit.NUKE),
     ;
+
+    public static final AttackType[] values = values();
+    private final MilitaryUnit[] units;
+    private final String name;
+    private final int mapUsed;
+    private final int resistanceIT;
+
+    AttackType(int mapUsed, int resistanceIT, MilitaryUnit... units) {
+        this(null, mapUsed, resistanceIT, units);
+    }
+
+    AttackType(String name, int mapUsed, int resistanceIT, MilitaryUnit... units) {
+        this.units = units;
+        this.name = name == null ? name() : name;
+        this.mapUsed = mapUsed;
+        this.resistanceIT = resistanceIT;
+    }
 
     public static AttackType fromV3(com.politicsandwar.graphql.model.AttackType v3) {
         switch (v3) {
@@ -63,22 +77,12 @@ public enum AttackType {
         }
     }
 
-    private final MilitaryUnit[] units;
-    private final String name;
-    private final int mapUsed;
-    private final int resistanceIT;
-
-    AttackType(int mapUsed, int resistanceIT, MilitaryUnit... units) {
-        this(null, mapUsed, resistanceIT, units);
+    public static AttackType get(String input) {
+        if (input.charAt(input.length() - 1) == 'F') {
+            return get(input.substring(0, input.length() - 1));
+        }
+        return valueOf(input);
     }
-
-    AttackType(String name, int mapUsed, int resistanceIT, MilitaryUnit... units) {
-        this.units = units;
-        this.name = name == null ? name() : name;
-        this.mapUsed = mapUsed;
-        this.resistanceIT = resistanceIT;
-    }
-
 
     public int getResistanceIT() {
         return resistanceIT;
@@ -90,15 +94,6 @@ public enum AttackType {
 
     public String getName() {
         return name;
-    }
-
-    public static final AttackType[] values = values();
-
-    public static AttackType get(String input) {
-        if (input.charAt(input.length() - 1) == 'F') {
-            return get(input.substring(0, input.length() - 1));
-        }
-        return valueOf(input);
     }
 
     public MilitaryUnit[] getUnits() {

@@ -18,9 +18,7 @@ public enum Continent {
     AFRICA(false, OIL, BAUXITE, URANIUM, FOOD),
     ASIA(true, OIL, IRON, URANIUM, FOOD),
     AUSTRALIA(false, COAL, BAUXITE, LEAD, FOOD),
-    ANTARCTICA(null, COAL, OIL, URANIUM, FOOD)
-
-    ;
+    ANTARCTICA(null, COAL, OIL, URANIUM, FOOD);
 
     public static Continent[] values = values();
 
@@ -36,13 +34,20 @@ public enum Continent {
 
     public static Continent parseV3(String toUpperCase) {
         switch (toUpperCase.toUpperCase(Locale.ROOT)) {
-            case "NA": return NORTH_AMERICA;
-            case "SA": return SOUTH_AMERICA;
-            case "EU": return EUROPE;
-            case "AF": return AFRICA;
-            case "AS": return ASIA;
-            case "AU": return AUSTRALIA;
-            case "AN": return ANTARCTICA;
+            case "NA":
+                return NORTH_AMERICA;
+            case "SA":
+                return SOUTH_AMERICA;
+            case "EU":
+                return EUROPE;
+            case "AF":
+                return AFRICA;
+            case "AS":
+                return ASIA;
+            case "AU":
+                return AUSTRALIA;
+            case "AN":
+                return ANTARCTICA;
             default:
                 throw new IllegalArgumentException("No continent found for: " + toUpperCase);
         }
@@ -51,7 +56,7 @@ public enum Continent {
     public double foodModifier(ZonedDateTime time) {
         if (north == Boolean.TRUE) {
             return 1;
-        } else if (north == Boolean.FALSE){
+        } else if (north == Boolean.FALSE) {
             return 1;
         }
         return 0.5;

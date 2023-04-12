@@ -1,24 +1,18 @@
 package link.locutus.discord.apiv1.enums.city.building.imp;
 
-import link.locutus.discord.apiv1.domains.Nation;
 import link.locutus.discord.apiv1.enums.MilitaryUnit;
 import link.locutus.discord.apiv1.enums.ResourceType;
-import link.locutus.discord.apiv1.enums.city.building.*;
-import link.locutus.discord.apiv1.enums.city.project.Project;
-
-import java.util.EnumMap;
-import java.util.Map;
-import java.util.function.Function;
-import java.util.function.IntFunction;
-import java.util.function.Predicate;
-import java.util.function.ToIntFunction;
+import link.locutus.discord.apiv1.enums.city.building.CommerceBuilding;
+import link.locutus.discord.apiv1.enums.city.building.MilitaryBuilding;
+import link.locutus.discord.apiv1.enums.city.building.PowerBuilding;
+import link.locutus.discord.apiv1.enums.city.building.ResourceBuilding;
 
 public class BuildingBuilder {
     private final String name;
+    private final double[] cost = ResourceType.getBuffer();
+    private final double[] upkeep = ResourceType.getBuffer();
     private int cap = Integer.MAX_VALUE;
     private int pollution;
-    private double[] cost = ResourceType.getBuffer();
-    private double[] upkeep = ResourceType.getBuffer();
 
     public BuildingBuilder(String name) {
         this.name = name;

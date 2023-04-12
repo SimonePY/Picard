@@ -24,11 +24,9 @@ public enum QueryURLV2 {
     NATION_MILITARY_URL("nation-military/?key={0}"),
     WAR_ATTACKS_URL("war-attacks/key={0}");
 
-    ;
-
     private final String url;
 
-    private QueryURLV2(String url) {
+    QueryURLV2(String url) {
         this.url = url;
     }
 

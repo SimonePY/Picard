@@ -11,9 +11,7 @@ public enum GameTimers {
     WAR_POLICY(5 * 12),
     DOMESTIC_POLICY(5 * 12),
 
-    BEIGE_FROM_WAR(2 * 12)
-
-    ;
+    BEIGE_FROM_WAR(2 * 12);
 
     private final Predicate<DBNation> filter;
     private final int turns;
@@ -22,6 +20,7 @@ public enum GameTimers {
     GameTimers(int turns) {
         this(turns, f -> true);
     }
+
     GameTimers(int turns, Predicate<DBNation> applies) {
         this.turns = turns;
         this.filter = applies;

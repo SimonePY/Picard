@@ -1,20 +1,10 @@
 package link.locutus.discord.apiv1.enums.city.building;
 
-import link.locutus.discord.apiv1.domains.Nation;
 import link.locutus.discord.apiv1.enums.Continent;
-import link.locutus.discord.apiv1.enums.MilitaryUnit;
 import link.locutus.discord.apiv1.enums.ResourceType;
 import link.locutus.discord.apiv1.enums.city.JavaCity;
-import link.locutus.discord.apiv1.enums.city.building.imp.ACommerceBuilding;
-import link.locutus.discord.apiv1.enums.city.building.imp.AMilitaryBuilding;
-import link.locutus.discord.apiv1.enums.city.building.imp.APowerBuilding;
-import link.locutus.discord.apiv1.enums.city.building.imp.AResourceBuilding;
 import link.locutus.discord.apiv1.enums.city.project.Project;
-import rocker.grant.city;
 
-
-import java.util.Map;
-import java.util.function.Function;
 import java.util.function.Predicate;
 
 public interface Building {

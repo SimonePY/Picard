@@ -230,17 +230,17 @@ public class BankRecord {
     public double[] toMap() {
         double[] map = new double[values.length];
         if (money != null && money != 0) map[MONEY.ordinal()] = money;
-        if (coal != null && coal != 0) map[COAL.ordinal()] =coal;
-        if (oil != null && oil != 0) map[OIL.ordinal()] =oil;
-        if (uranium != null && uranium != 0) map[URANIUM.ordinal()] =uranium;
-        if (iron != null && iron != 0) map[IRON.ordinal()] =iron;
-        if (bauxite != null && bauxite != 0) map[BAUXITE.ordinal()] =bauxite;
-        if (lead != null && lead != 0) map[LEAD.ordinal()] =lead;
-        if (gasoline != null && gasoline != 0) map[GASOLINE.ordinal()] =gasoline;
-        if (munitions != null && munitions != 0) map[MUNITIONS.ordinal()] =munitions;
-        if (steel != null && steel != 0) map[STEEL.ordinal()] =steel;
-        if (aluminum != null && aluminum != 0) map[ALUMINUM.ordinal()] =aluminum;
-        if (food != null && food != 0) map[FOOD.ordinal()] =food;
+        if (coal != null && coal != 0) map[COAL.ordinal()] = coal;
+        if (oil != null && oil != 0) map[OIL.ordinal()] = oil;
+        if (uranium != null && uranium != 0) map[URANIUM.ordinal()] = uranium;
+        if (iron != null && iron != 0) map[IRON.ordinal()] = iron;
+        if (bauxite != null && bauxite != 0) map[BAUXITE.ordinal()] = bauxite;
+        if (lead != null && lead != 0) map[LEAD.ordinal()] = lead;
+        if (gasoline != null && gasoline != 0) map[GASOLINE.ordinal()] = gasoline;
+        if (munitions != null && munitions != 0) map[MUNITIONS.ordinal()] = munitions;
+        if (steel != null && steel != 0) map[STEEL.ordinal()] = steel;
+        if (aluminum != null && aluminum != 0) map[ALUMINUM.ordinal()] = aluminum;
+        if (food != null && food != 0) map[FOOD.ordinal()] = food;
         return map;
     }
 }

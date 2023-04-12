@@ -6,12 +6,12 @@ import link.locutus.discord.apiv1.enums.QueryURL;
 
 public class NationQuery extends Query {
 
-  public NationQuery(int nid, String apiKey) {
-    super(Integer.toString(nid), apiKey);
-  }
+    public NationQuery(int nid, String apiKey) {
+        super(Integer.toString(nid), apiKey);
+    }
 
-  @Override
-  public ApiQuery build() {
-    return new ApiQuery<>(UrlBuilder.build(QueryURL.NATION_URL, args), new Nation());
-  }
+    @Override
+    public ApiQuery build() {
+        return new ApiQuery<>(UrlBuilder.build(QueryURL.NATION_URL, args), new Nation());
+    }
 }

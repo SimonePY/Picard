@@ -6,9 +6,8 @@ import link.locutus.discord.util.PnwUtil;
 
 import java.util.Collection;
 import java.util.Locale;
-import java.util.Set;
 
-public enum  NationColor {
+public enum NationColor {
     AQUA,
     BEIGE,
     BLACK,
@@ -32,10 +31,53 @@ public enum  NationColor {
     private int turnBonus;
     private String votedName;
 
+    public static NationColor fromV3(Color color) {
+        switch (color.getColor().toUpperCase(Locale.ROOT)) {
+            case "AQUA":
+                return AQUA;
+            case "BEIGE":
+                return BEIGE;
+            case "BLACK":
+                return BLACK;
+            case "BLUE":
+                return BLUE;
+            case "BROWN":
+                return BROWN;
+            case "GRAY":
+                return GRAY;
+            case "GREEN":
+                return GREEN;
+            case "LIME":
+                return LIME;
+            case "MAROON":
+                return MAROON;
+            case "OLIVE":
+                return OLIVE;
+            case "ORANGE":
+                return ORANGE;
+            case "PINK":
+                return PINK;
+            case "PURPLE":
+                return PURPLE;
+            case "RED":
+                return RED;
+            case "WHITE":
+                return WHITE;
+            case "YELLOW":
+                return YELLOW;
+            default:
+                throw new IllegalArgumentException("Unknown color: " + color.getColor());
+        }
+    }
+
     public int getTurnBonus() {
         if (this == GRAY) return 0;
         if (this == BEIGE) return 50_000;
         return turnBonus;
+    }
+
+    public void setTurnBonus(int amt) {
+        this.turnBonus = amt;
     }
 
     public int getTurnBonus(Collection<DBNation> nationsOnColor, boolean cap) {
@@ -52,37 +94,11 @@ public enum  NationColor {
         return (int) Math.round(colorRev);
     }
 
-    public void setTurnBonus(int amt) {
-        this.turnBonus = amt;
-    }
-
     public String getVotedName() {
         return votedName == null ? name() : votedName;
     }
 
     public void setVotedName(String votedName) {
         this.votedName = votedName;
-    }
-
-    public static NationColor fromV3(Color color) {
-        switch (color.getColor().toUpperCase(Locale.ROOT)) {
-            case "AQUA": return AQUA;
-            case "BEIGE": return BEIGE;
-            case "BLACK": return BLACK;
-            case "BLUE": return BLUE;
-            case "BROWN": return BROWN;
-            case "GRAY": return GRAY;
-            case "GREEN": return GREEN;
-            case "LIME": return LIME;
-            case "MAROON": return MAROON;
-            case "OLIVE": return OLIVE;
-            case "ORANGE": return ORANGE;
-            case "PINK": return PINK;
-            case "PURPLE": return PURPLE;
-            case "RED": return RED;
-            case "WHITE": return WHITE;
-            case "YELLOW": return YELLOW;
-            default: throw new IllegalArgumentException("Unknown color: " + color.getColor());
-        }
     }
 }

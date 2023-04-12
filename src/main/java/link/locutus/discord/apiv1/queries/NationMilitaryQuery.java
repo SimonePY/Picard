@@ -6,12 +6,12 @@ import link.locutus.discord.apiv1.enums.QueryURL;
 
 public class NationMilitaryQuery extends Query {
 
-  public NationMilitaryQuery(String apiKey) {
-    super(apiKey);
-  }
+    public NationMilitaryQuery(String apiKey) {
+        super(apiKey);
+    }
 
-  @Override
-  public ApiQuery build() {
-    return new ApiQuery<>(UrlBuilder.build(QueryURL.NATION_MILITARY_URL, args), new NationMilitary());
-  }
+    @Override
+    public ApiQuery build() {
+        return new ApiQuery<>(UrlBuilder.build(QueryURL.NATION_MILITARY_URL, args), new NationMilitary());
+    }
 }

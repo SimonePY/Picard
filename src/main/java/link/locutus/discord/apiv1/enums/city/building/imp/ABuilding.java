@@ -1,16 +1,13 @@
 package link.locutus.discord.apiv1.enums.city.building.imp;
 
 import link.locutus.discord.apiv1.enums.Continent;
-import link.locutus.discord.util.PnwUtil;
 import link.locutus.discord.apiv1.enums.ResourceType;
 import link.locutus.discord.apiv1.enums.city.JavaCity;
 import link.locutus.discord.apiv1.enums.city.building.Building;
 import link.locutus.discord.apiv1.enums.city.project.Project;
-import rocker.grant.city;
+import link.locutus.discord.util.PnwUtil;
 
-import java.util.Map;
 import java.util.function.Predicate;
-import java.util.function.ToIntFunction;
 
 public class ABuilding implements Building {
     private final int pollution;

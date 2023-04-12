@@ -22,7 +22,7 @@ public enum QueryURL {
 
     private final String url;
 
-    private QueryURL(String url) {
+    QueryURL(String url) {
         this.url = url;
     }
 

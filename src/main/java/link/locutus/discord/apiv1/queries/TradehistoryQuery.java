@@ -10,26 +10,26 @@ import java.util.stream.Collectors;
 
 public class TradehistoryQuery extends Query {
 
-  private final Integer records;
-  private final ResourceType[] resources;
+    private final Integer records;
+    private final ResourceType[] resources;
 
-  public TradehistoryQuery(Integer records, ResourceType[] resources, String apiKey) {
-    super(apiKey);
-    this.records = records;
-    if (resources != null)
-      this.resources = Arrays.copyOf(resources, resources.length);
-    else
-      this.resources = null;
-  }
+    public TradehistoryQuery(Integer records, ResourceType[] resources, String apiKey) {
+        super(apiKey);
+        this.records = records;
+        if (resources != null)
+            this.resources = Arrays.copyOf(resources, resources.length);
+        else
+            this.resources = null;
+    }
 
-  @Override
-  public ApiQuery build() {
-    String url = UrlBuilder.build(QueryURL.TRADEHISTORY_URL, args);
-    if (records != null)
-      url = url.concat("&records=").concat(Integer.toString(records));
-    if (resources != null)
-      url = url.concat("&resources=")
-          .concat(Arrays.stream(resources).map(ResourceType::getName).collect(Collectors.joining(",")));
-    return new ApiQuery<>(url, new TradeHistory());
-  }
+    @Override
+    public ApiQuery build() {
+        String url = UrlBuilder.build(QueryURL.TRADEHISTORY_URL, args);
+        if (records != null)
+            url = url.concat("&records=").concat(Integer.toString(records));
+        if (resources != null)
+            url = url.concat("&resources=")
+                    .concat(Arrays.stream(resources).map(ResourceType::getName).collect(Collectors.joining(",")));
+        return new ApiQuery<>(url, new TradeHistory());
+    }
 }

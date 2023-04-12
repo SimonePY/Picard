@@ -10,7 +10,7 @@ public class WarAttacksQuery extends Query {
     private final Integer max_war_attack_id;
 
     public WarAttacksQuery(Integer war_id, Integer min_war_attack_id, Integer max_war_attack_id, String apiKey) {
-        super(new String[]{apiKey});
+        super(apiKey);
         this.war_id = war_id;
         this.min_war_attack_id = min_war_attack_id;
         this.max_war_attack_id = max_war_attack_id;

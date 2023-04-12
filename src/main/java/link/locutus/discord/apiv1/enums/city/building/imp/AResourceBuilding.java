@@ -1,17 +1,13 @@
 package link.locutus.discord.apiv1.enums.city.building.imp;
 
-import link.locutus.discord.apiv1.enums.city.project.Projects;
-import link.locutus.discord.util.PnwUtil;
-import link.locutus.discord.apiv1.domains.Nation;
-import link.locutus.discord.apiv1.domains.subdomains.SCityContainer;
 import link.locutus.discord.apiv1.enums.Continent;
 import link.locutus.discord.apiv1.enums.ResourceType;
 import link.locutus.discord.apiv1.enums.city.JavaCity;
-import link.locutus.discord.apiv1.enums.city.building.Building;
 import link.locutus.discord.apiv1.enums.city.building.ResourceBuilding;
 import link.locutus.discord.apiv1.enums.city.project.Project;
+import link.locutus.discord.apiv1.enums.city.project.Projects;
+import link.locutus.discord.util.PnwUtil;
 
-import java.util.function.Function;
 import java.util.function.Predicate;
 
 public class AResourceBuilding extends ABuilding implements ResourceBuilding {
@@ -24,6 +20,7 @@ public class AResourceBuilding extends ABuilding implements ResourceBuilding {
     public AResourceBuilding(BuildingBuilder parent, ResourceType output) {
         this(parent, output.getBaseInput(), output.getBoostFactor(), output, output.getInputs());
     }
+
     public AResourceBuilding(BuildingBuilder parent, int baseInput, double boostFactor, ResourceType output, ResourceType... inputs) {
         super(parent);
         this.baseInput = baseInput;

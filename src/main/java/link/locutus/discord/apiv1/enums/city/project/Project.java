@@ -1,13 +1,10 @@
 package link.locutus.discord.apiv1.enums.city.project;
 
-import link.locutus.discord.apiv1.enums.DomesticPolicy;
+import link.locutus.discord.apiv1.enums.ResourceType;
 import link.locutus.discord.config.Settings;
 import link.locutus.discord.db.entities.DBNation;
-import link.locutus.discord.apiv1.enums.ResourceType;
 import link.locutus.discord.util.PnwUtil;
-import rocker.grant.project;
 
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -43,11 +40,11 @@ public interface Project {
 
     String getImageName();
 
-    public Set<Project> requiredProjects();
+    Set<Project> requiredProjects();
 
-    public int requiredCities();
+    int requiredCities();
 
-    public int maxCities();
+    int maxCities();
 
     default boolean canBuild(DBNation nation) {
         if (nation.getCities() < requiredCities()) return false;

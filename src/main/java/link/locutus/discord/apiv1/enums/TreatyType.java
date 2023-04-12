@@ -15,6 +15,7 @@ public enum TreatyType {
 
     ;
 
+    public static TreatyType[] values = values();
     private final int strength;
     private final String id;
 
@@ -28,17 +29,15 @@ public enum TreatyType {
         this.id = id;
     }
 
+    public static TreatyType parse(String arg) {
+        return TreatyType.valueOf(arg.toUpperCase());
+    }
+
     public String getId() {
         return id;
     }
 
     public int getStrength() {
         return strength;
-    }
-
-    public static TreatyType[] values = values();
-
-    public static TreatyType parse(String arg) {
-        return TreatyType.valueOf(arg.toUpperCase());
     }
 }

@@ -2,6 +2,7 @@ package link.locutus.discord.apiv1.domains.subdomains;
 
 import com.google.gson.annotations.Expose;
 import com.google.gson.annotations.SerializedName;
+
 import java.util.Objects;
 
 public class SNationContainer {
@@ -128,7 +129,7 @@ public class SNationContainer {
         if (this == o) {
             return true;
         } else if (o != null && this.getClass() == o.getClass()) {
-            SNationContainer container = (SNationContainer)o;
+            SNationContainer container = (SNationContainer) o;
             return this.nationid == container.nationid && this.allianceid == container.allianceid && this.allianceposition == container.allianceposition && this.cities == container.cities && this.offensivewars == container.offensivewars && this.defensivewars == container.defensivewars && Double.compare(container.score, this.score) == 0 && this.rank == container.rank && this.minutessinceactive == container.minutessinceactive && Objects.equals(this.nation, container.nation) && Objects.equals(this.leader, container.leader) && Objects.equals(this.continent, container.continent) && Objects.equals(this.warPolicy, container.warPolicy) && Objects.equals(this.color, container.color) && Objects.equals(this.alliance, container.alliance) && Objects.equals(this.vacmode, container.vacmode);
         } else {
             return false;

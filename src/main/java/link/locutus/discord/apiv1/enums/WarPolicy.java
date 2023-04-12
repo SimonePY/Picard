@@ -15,6 +15,7 @@ public enum WarPolicy {
     ;
 
     public static final WarPolicy[] values = values();
+
     public static WarPolicy parse(String policy) {
         return WarPolicy.valueOf(policy.toUpperCase());
     }
