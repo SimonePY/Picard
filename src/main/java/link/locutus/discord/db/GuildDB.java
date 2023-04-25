@@ -1587,7 +1587,9 @@ public class GuildDB extends DBMain implements NationOrAllianceOrGuild {
         Set<Integer> aaIds = getAllianceIds();
         Set<Long> channelAccountIds = getResourceChannelAccounts(messageChannelIdOrNull);
         boolean isResourceChannel = channelAccountIds != null;
-        if (channelAccountIds == null) {
+        boolean requireAdmin = false;
+        if (channelAccountIds == null || channelAccountIds.isEmpty()) {
+            requireAdmin = getOrNull(Key.RESOURCE_REQUEST_CHANNEL) != null;
             channelAccountIds = new HashSet<>();
             if (!aaIds.isEmpty()) {
                 for (Integer aaId : aaIds) channelAccountIds.add(aaId.longValue());
@@ -1621,7 +1623,6 @@ public class GuildDB extends DBMain implements NationOrAllianceOrGuild {
             throw new IllegalArgumentException(msg);
         }
 
-
         if (Roles.ECON.has(banker, guild)) {
             for (long accountId : channelAccountIds) {
                 accessTypeMap.put(accountId, AccessType.ECON);
@@ -1632,12 +1633,12 @@ public class GuildDB extends DBMain implements NationOrAllianceOrGuild {
                     accessTypeMap.put(aaId, AccessType.ECON);
                 }
             }
-            long withdrawAccount = getMemberWithdrawAccount(banker, messageChannelIdOrNull, channelAccountIds, accessTypeMap.isEmpty());
+            long withdrawAccount = getMemberWithdrawAccount(banker, messageChannelIdOrNull, requireAdmin ? Collections.emptySet() : channelAccountIds, accessTypeMap.isEmpty());
             if (withdrawAccount > 0) {
                 accessTypeMap.putIfAbsent(withdrawAccount, AccessType.SELF);
             }
         } else {
-            long withdrawAccount = getMemberWithdrawAccount(banker, messageChannelIdOrNull, channelAccountIds, accessTypeMap.isEmpty());
+            long withdrawAccount = getMemberWithdrawAccount(banker, messageChannelIdOrNull, requireAdmin ? Collections.emptySet() : channelAccountIds, accessTypeMap.isEmpty());
             if (withdrawAccount > 0) {
                 accessTypeMap.putIfAbsent(withdrawAccount, AccessType.SELF);
             }
@@ -3749,7 +3750,7 @@ public class GuildDB extends DBMain implements NationOrAllianceOrGuild {
 
             @Override
             public boolean allowed(GuildDB db) {
-                return db.isWhitelisted();
+                return true;
             }
         },
 
@@ -4139,7 +4140,7 @@ public class GuildDB extends DBMain implements NationOrAllianceOrGuild {
 
             @Override
             public <T> boolean hasPermission(GuildDB db, User author, T value) {
-                return db.isWhitelisted() && db.hasCoalitionPermsOnRoot(Coalition.RAIDPERMS);
+                return true;
             }
 
             @Override
@@ -4250,6 +4251,14 @@ public class GuildDB extends DBMain implements NationOrAllianceOrGuild {
 
             @Override
             public Object parse(GuildDB db, String input) {
+                Role interviewerRole = Roles.INTERVIEWER.toRole(db.getGuild());
+                if (interviewerRole == null) interviewerRole = Roles.MENTOR.toRole(db.getGuild());
+                if (interviewerRole == null) interviewerRole = Roles.INTERNAL_AFFAIRS_STAFF.toRole(db.getGuild());
+                if (interviewerRole == null) interviewerRole = Roles.INTERNAL_AFFAIRS.toRole(db.getGuild());
+                if (interviewerRole == null) {
+                    throw new IllegalArgumentException("Please use: " + CM.role.setAlias.cmd.toSlashMention() + " to set one of the following:\n" +
+                     StringMan.join(Arrays.asList(Roles.INTERVIEWER, Roles.MENTOR, Roles.INTERNAL_AFFAIRS_STAFF, Roles.INTERNAL_AFFAIRS), ", "));
+                }
                 return DiscordUtil.getChannel(db.getGuild(), input);
             }
 
@@ -4821,7 +4830,7 @@ public class GuildDB extends DBMain implements NationOrAllianceOrGuild {
         REWARD_REFERRAL(false, MEMBER_LEAVE_ALERT_CHANNEL, CommandCategory.ECON) {
             @Override
             public boolean allowed(GuildDB db) {
-                return db.isWhitelisted();
+                return true;
             }
 
             @Override
@@ -4842,7 +4851,7 @@ public class GuildDB extends DBMain implements NationOrAllianceOrGuild {
         REWARD_MENTOR(false, Key.INTERVIEW_PENDING_ALERTS, CommandCategory.ECON) {
             @Override
             public boolean allowed(GuildDB db) {
-                return db.isWhitelisted();
+                return true;
             }
 
             @Override

@@ -2,6 +2,7 @@ package link.locutus.discord.commands.manager.v2.impl.pw.commands;
 
 import link.locutus.discord.Locutus;
 import link.locutus.discord.apiv1.core.ApiKeyPool;
+import link.locutus.discord.commands.manager.v2.binding.annotation.Arg;
 import link.locutus.discord.commands.manager.v2.command.IMessageBuilder;
 import link.locutus.discord.commands.manager.v2.command.IMessageIO;
 import link.locutus.discord.commands.manager.v2.impl.discord.DiscordChannelIO;
@@ -28,6 +29,7 @@ import link.locutus.discord.db.entities.DBAlliance;
 import link.locutus.discord.pnw.AllianceList;
 import link.locutus.discord.pnw.BeigeReason;
 import link.locutus.discord.pnw.CityRanges;
+import link.locutus.discord.pnw.NationScoreMap;
 import link.locutus.discord.pnw.Spyop;
 import link.locutus.discord.user.Roles;
 import link.locutus.discord.util.MarkupUtil;
@@ -1627,6 +1629,139 @@ public class WarCommands {
         return body.toString();
     }
 
+    // Command that generates a sheet of raidable targets
+    @Command(desc = "Generate a sheet of raid targets")
+    @RolePermission(Roles.MILCOM)
+    public String raidSheet(@Me IMessageIO io, @Me GuildDB db, Set<DBNation> attackers, Set<DBNation> targets, @Range(min=1,max=25) @Default("5") int numTargets, @Switch("i") boolean includeInactiveAttackers, @Switch("a") boolean includeApplicantAttackers, @Switch("b") boolean includeBeigeAttackers) throws GeneralSecurityException, IOException {
+        if (!includeInactiveAttackers) {
+            attackers.removeIf(f -> f.active_m() > 2440);
+        }
+        if (!includeApplicantAttackers) {
+            attackers.removeIf(f -> f.getPositionEnum().id <= Rank.APPLICANT.id);
+        }
+        if (!includeBeigeAttackers) {
+            attackers.removeIf(f -> f.isBeige());
+        }
+        attackers.removeIf(f -> f.getOff() >= f.getMaxOff() || f.getVm_turns() > 0);
+
+        // Remove unraidable
+        targets.removeIf(f -> f.getDef() >= 3 || f.isBeige() || f.getVm_turns() > 0);
+        // remove DNR
+        Function<DBNation, Boolean> canRaid = db.getCanRaid();
+        targets.removeIf(f -> !canRaid.apply(f));
+        Set<Integer> aaIds = db.getAllianceIds();
+
+        Set<Integer> attackerAAs = attackers.stream().map(f -> f.getAlliance_id()).collect(Collectors.toSet());
+        if (!aaIds.containsAll(attackerAAs)) {
+            throw new IllegalArgumentException("Only attackers from this guild's alliance ids can be used: `" + StringMan.getString(aaIds) + "`. You tried generating targets for attackers in the alliance ids: `" + StringMan.getString(attackerAAs) + "`");
+        }
+
+        Map.Entry<Double, Double> minMax = NationScoreMap.getMinMaxScore(attackers, 0.75, 1.75);
+        targets.removeIf(f -> f.getScore() < minMax.getKey() || f.getScore() > minMax.getValue());
+        Map.Entry<Double, Double> enemyMinMax = NationScoreMap.getMinMaxScore(targets, 1 / 1.75, 1 / 0.75);
+        attackers.removeIf(f -> f.getScore() < enemyMinMax.getKey() || f.getScore() > enemyMinMax.getValue());
+
+        if (attackers.isEmpty()) {
+            throw new IllegalArgumentException("No attackers with free offensive slots provided");
+        }
+
+        if (targets.isEmpty()) {
+            throw new IllegalArgumentException("No targets with free slots found");
+        }
+
+        /*
+        If enemy has more ships and attacker is currently blockaded, reduce loot by 2/5 * activity
+         */
+
+        NationScoreMap<DBNation> enemyMap = new NationScoreMap<>(targets, DBNation::getScore, 1/1.75, 1/0.75);
+
+        Map<DBNation, Double> loots = new HashMap<>();
+        Map<DBNation, Double> fightChances = new HashMap<>();
+        // aaLoot = PnwUtil.resourcesToArray(Locutus.imp().getWarDb().getAllianceBankEstimate(getAlliance_id(), getScore()));
+
+        for (DBNation attacker : attackers) {
+            List<DBNation> defenders = enemyMap.get((int) Math.round(attacker.getScore()));
+            for (DBNation defender : defenders) {
+                double loot = loots.computeIfAbsent(defender, f -> PnwUtil.convertedTotal(f.getLootRevenueTotal()));
+                double fightChance = 1;
+
+                // 0 -> 7200 = * 0.3 each
+                // 37% by the second week?
+
+                // 7200 -> 10200 = linear
+
+                // 20160
+                // 30240 = 0
+
+                // days inactive
+
+                // nation age days
+
+                // city count
+
+                // alliance position (none, app, member)
+                // 0 1 2
+
+                // alliance seniority
+
+                // last war status
+
+                if (defender.active_m() > 10200) {
+                    fightChance = 0;
+                } else if (defender.active_m() > 7200) {
+                    double activeRatio = (1 - ((defender.active_m() - 7200d) / (20000d - 7200d))) * 0.25;
+
+                    boolean hasLostOrActive = false;
+                    DBWar latest = null;
+                    for (DBWar war : defender.getWars()) {
+                        if (latest == null || war.date > latest.date) {
+                            latest = war;
+                        }
+                        if (war.defender_id != defender.getId()) {
+                            continue;
+                        }
+                        if (war.date < defender.lastActiveMs()) {
+                            continue;
+                        }
+                        switch (war.status) {
+                            case ACTIVE:
+                            case ATTACKER_VICTORY:
+                            case ATTACKER_OFFERED_PEACE:
+                                hasLostOrActive = true;
+                                break;
+                        }
+                    }
+                    if (hasLostOrActive) {
+                        fightChance = 0;
+                    } else if (latest.date > System.currentTimeMillis() - TimeUnit.DAYS.toMillis(30)) {
+                        if (latest.status == WarStatus.EXPIRED || latest.status == WarStatus.DEFENDER_VICTORY || latest.status == WarStatus.PEACE) {
+                            fightChance = 0.5;
+                        } else if (latest != null) {
+
+                        } else {
+                            // proportional to activity
+                        }
+                    } else if (latest.status == WarStatus.DEFENDER_OFFERED_PEACE) {
+                        fightChance = 0.5;
+                    }
+                }
+            }
+
+            // fight chance (active m between 2440 and 10000 (below = 100%, above = 0%)
+
+            // get cost
+
+            // missiles
+
+            // nukes
+
+
+        }
+
+        return null;
+
+    }
+
     @Command(desc = "Generate a list of raidable targets to gather intel on\n" +
             "`<time>` - filters out nations we have loot intel on in that period\n" +
             "`<attackers>` - The nations to assign to do the ops (i.e. your alliance link)\n" +
@@ -1738,6 +1873,27 @@ public class WarCommands {
         sheet.set(0, 0);
 
         sheet.attach(io.create()).send();
+        return null;
+    }
+
+
+    @Command(desc = "Convert hidude's sheet format to Locutus")
+    @RolePermission(Roles.MILCOM)
+    public String convertDtCSpySheet(@Me IMessageIO io, @Me GuildDB db, @Me User author, SpreadSheet input, @Switch("s") SpreadSheet output,
+                                        @Arg("If results (left column) are grouped by the attacker instead of the defender")
+                                        @Switch("a") boolean groupByAttacker, @Switch("f") boolean forceUpdate) throws GeneralSecurityException, IOException {
+        Map<DBNation, List<Spyop>> spyOpsFiltered = SpyBlitzGenerator.getTargetsDTC(input, groupByAttacker, forceUpdate);
+
+        if (output == null) {
+            output = SpreadSheet.create(db, GuildDB.Key.SPYOP_SHEET);
+        }
+
+        generateSpySheet(output, spyOpsFiltered, groupByAttacker);
+
+        output.clearAll();
+        output.set(0, 0);
+
+        output.send(io, null, author.getAsMention()).send();
         return null;
     }
 

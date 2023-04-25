@@ -1232,9 +1232,9 @@ public class WarDB extends DBMainV2 {
             Double pct;
             if (loot == null) {
                 loot = Collections.emptyMap();
-                pct = attack.getLootPercent();
-            } else {
                 pct = 1d;
+            } else {
+                pct = attack.getLootPercent();
             }
             if (pct == 0) pct = 0.1;
             double factor = 1/pct;
@@ -1785,9 +1785,8 @@ public class WarDB extends DBMainV2 {
     public Map<ResourceType, Double> getAllianceBankEstimate(int allianceId, double nationScore) {
         DBAlliance alliance = DBAlliance.get(allianceId);
         if (allianceId == 0 || alliance == null) return Collections.emptyMap();
-        LootEntry lootInfo = Locutus.imp().getNationDB().getAllianceLoot(allianceId);
+        LootEntry lootInfo = alliance.getLoot();
         if (lootInfo == null) return Collections.emptyMap();
-
 
         double[] allianceLoot = lootInfo.getTotal_rss();
 

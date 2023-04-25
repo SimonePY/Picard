@@ -1,6 +1,9 @@
 package link.locutus.discord.web.jooby;
 
 
+import io.javalin.core.compression.Brotli;
+import io.javalin.core.compression.CompressionStrategy;
+import io.javalin.core.compression.Gzip;
 import io.javalin.http.Handler;
 import link.locutus.discord.Locutus;
 import link.locutus.discord.config.Settings;
@@ -67,7 +70,10 @@ public class WebRoot {
             REDIRECT = Settings.INSTANCE.WEB.REDIRECT + ":" + portHTTPS;
         } else if (portHTTPS <= 0) {
             REDIRECT = Settings.INSTANCE.WEB.REDIRECT + ":" + portMain;
+        } else {
+            REDIRECT = Settings.INSTANCE.WEB.REDIRECT;
         }
+
         INSTANCE = this;
 
         RockerRuntime.getInstance().setReloading(true);
@@ -85,12 +91,13 @@ public class WebRoot {
                 LocutusSSLHandler.configureServer(server, portMain, portHTTPS);
                 return server;
             });
+            config.compressionStrategy(CompressionStrategy.GZIP);
             for (Map.Entry<String, String> entry : staticFileMap.entrySet()) {
                 config.addStaticFiles(staticFiles -> {
                     staticFiles.hostedPath = entry.getValue();                   // change to host files on a subpath, like '/assets'
                     staticFiles.directory = entry.getKey();              // the directory where your files are located
                     staticFiles.location = Location.CLASSPATH;      // Location.CLASSPATH (jar) or Location.EXTERNAL (file system)
-                    staticFiles.precompress = !Settings.INSTANCE.WEB.DEVELOPMENT;                // if the files should be pre-compressed and cached in memory (optimization)
+                    staticFiles.precompress = true;                // if the files should be pre-compressed and cached in memory (optimization)
 //                staticFiles.aliasCheck = null;                  // you can configure this to enable symlinks (= ContextHandler.ApproveAliases())
 //                staticFiles.headers = Map.of(...);              // headers that will be set for the files
 //                staticFiles.skipFileFunction = req -> false;    // you can use this to skip certain files in the dir, based on the HttpServletRequest
@@ -99,25 +106,6 @@ public class WebRoot {
         }).start();
 
         this.pageHandler = new PageHandler(this);
-
-        this.app.get("/auth**", new Handler() {
-            @Override
-            public void handle(@NotNull Context context) throws Exception {
-                // getr query string
-                Map<String, List<String>> queryMap = context.queryParamMap();
-
-                String allianceStr = StringMan.join(queryMap.getOrDefault("alliance", new ArrayList<>()), ",");
-                String authType = StringMan.join(queryMap.getOrDefault("type", new ArrayList<>()), ",");
-                // get auth type
-
-                // get alliance argument
-
-                // get nation argument, else prompt for nation name or id
-
-
-                context.result("Auth page content goes here");
-            }
-        });
 
         this.app.get("/bankrequests", new Handler() {
             @Override
@@ -153,36 +141,36 @@ public class WebRoot {
         this.app.get("/robots.txt", ctx -> ctx.result("User-agent: *\nDisallow: /"));
         this.app.get("/logout", ctx -> pageHandler.logout(ctx));
 
-        this.app.get("/{guild_id}/sse/**", new SseHandler2(new Consumer<SseClient2>() {
+        this.app.get("/sse/**", new SseHandler2(new Consumer<SseClient2>() {
             @Override
             public void accept(SseClient2 sse) {
                 pageHandler.sse(sse);
             }
         }));
 
-        this.app.get("/{guild_id}/sse_reaction**", new SseHandler2(new Consumer<SseClient2>() {
-            @Override
-            public void accept(SseClient2 sse) {
-                pageHandler.sseReaction(sse);
-            }
-        }));
-        this.app.get("/{guild_id}/sse_cmd_str**", new SseHandler2(new Consumer<SseClient2>() {
-            @Override
-            public void accept(SseClient2 sse) {
-                pageHandler.sseCmdStr(sse);
-            }
-        }));
+//        this.app.get("/sse_reaction**", new SseHandler2(new Consumer<SseClient2>() {
+//            @Override
+//            public void accept(SseClient2 sse) {
+//                pageHandler.sseReaction(sse);
+//            }
+//        }));
+//        this.app.get("/sse_cmd_str**", new SseHandler2(new Consumer<SseClient2>() {
+//            @Override
+//            public void accept(SseClient2 sse) {
+//                pageHandler.sseCmdStr(sse);
+//            }
+//        }));
 
-        this.app.get("cmd_page/{guild_id}/**", new SseHandler2(new Consumer<SseClient2>() {
-            @Override
-            public void accept(SseClient2 sse) {
-                try {
-                    pageHandler.sseCmdPage(sse);
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-            }
-        }));
+//        this.app.get("command/**", new SseHandler2(new Consumer<SseClient2>() {
+//            @Override
+//            public void accept(SseClient2 sse) {
+//                try {
+//                    pageHandler.sseCmdPage(sse);
+//                } catch (IOException e) {
+//                    e.printStackTrace();
+//                }
+//            }
+//        }));
 
         this.app.get("/discordids", new Handler() {
             @Override
@@ -197,12 +185,25 @@ public class WebRoot {
             }
         });
 
+        for (String cmd : Locutus.imp().getCommandManager().getV2().getCommands().getSubCommandIds()) {
+            List<String> patterns = Arrays.asList(
+                    "/command/" + cmd + "/**",
+                    "/command/" + cmd
+            );
+            for (String pattern : patterns) {
+                this.app.get(pattern, ctx -> {
+                    pageHandler.handle(ctx);
+                });
+                this.app.post(pattern, ctx -> {
+                    pageHandler.handle(ctx);
+                });
+            }
+        }
+
         for (String cmd : pageHandler.getCommands().getSubCommandIds()) {
             List<String> patterns = Arrays.asList(
-//                    "/" + cmd + "/**",
-//                    "/" + cmd,
-                    "/{guild_id}/" + cmd + "/**",
-                    "/{guild_id}/" + cmd
+                    "/page/" + cmd + "/**",
+                    "/page/" + cmd
             );
             for (String pattern : patterns) {
                 this.app.get(pattern, ctx -> {

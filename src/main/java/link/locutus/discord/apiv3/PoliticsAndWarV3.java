@@ -119,7 +119,7 @@ public class PoliticsAndWarV3 {
         T result;
 
         int badKey = 0;
-        int backOff = 0;
+        int backOff = 1;
         while (true) {
             ApiKeyPool.ApiKey pair = pool.getNextApiKey();
             String url = getUrl(pair.getKey());
@@ -129,10 +129,7 @@ public class PoliticsAndWarV3 {
                 HttpEntity<String> entity = httpEntity(graphQLRequest, pair.getKey(), pair.getBotKey());
 
 
-                exchange = restTemplate.exchange(URI.create(url),
-                        HttpMethod.POST,
-                        entity,
-                        String.class);
+                exchange = restTemplate.exchange(URI.create(url), HttpMethod.POST, entity, String.class);
 
                 String body = exchange.getBody();
                 JsonNode json = jacksonObjectMapper.readTree(body);
@@ -157,7 +154,7 @@ public class PoliticsAndWarV3 {
                 break;
             } catch (HttpClientErrorException.TooManyRequests e) {
                 try {
-                    long timeout = (long) (60000 * Math.pow(2, backOff));
+                    long timeout = (60000L);
                     System.out.println(e.getMessage());
                     System.out.println("Hit rate limit 2 " + timeout + "ms");
                     Thread.sleep(timeout);
@@ -227,16 +224,14 @@ public class PoliticsAndWarV3 {
 
     private <T extends Throwable> void rethrow(T e, ApiKeyPool.ApiKey pair, boolean throwRuntime) {
         String msg = e.getMessage();
-        if (e.getMessage() != null &&
-                (StringUtils.containsIgnoreCase(e.getMessage(), pair.getKey()) ||
-                        (pair.getBotKey() != null && StringUtils.containsIgnoreCase(e.getMessage(), pair.getBotKey())))) {
+        if (e.getMessage() != null && (StringUtils.containsIgnoreCase(e.getMessage(), pair.getKey()) || (pair.getBotKey() != null && StringUtils.containsIgnoreCase(e.getMessage(), pair.getBotKey())))) {
             msg = StringUtils.replaceIgnoreCase(e.getMessage(), pair.getKey(), "XXX");
             if (pair.getBotKey() != null) msg = StringUtils.replaceIgnoreCase(msg, pair.getBotKey(), "XXX");
             throwRuntime = true;
         }
         if (msg == null) msg = "";
         if (pair.getKey() != null) {
-            Integer nation = Locutus.imp().getDiscordDB().getNationFromApiKey(pair.getKey());
+            Integer nation = Locutus.imp().getDiscordDB().getNationFromApiKey(pair.getKey(), false);
             if (nation != null) {
                 msg = msg + " (using key from: " + nation + ")";
             }
@@ -305,47 +300,36 @@ public class PoliticsAndWarV3 {
         List<Bounty> allResults = new ArrayList<>();
 
         handlePagination(page -> {
-                    BountiesQueryRequest request = new BountiesQueryRequest();
-                    if (filter != null) filter.accept(request);
-                    request.setFirst(perPage);
-                    request.setPage(page);
+            BountiesQueryRequest request = new BountiesQueryRequest();
+            if (filter != null) filter.accept(request);
+            request.setFirst(perPage);
+            request.setPage(page);
 
-                    BountyResponseProjection respProj = new BountyResponseProjection();
-                    query.accept(respProj);
+            BountyResponseProjection respProj = new BountyResponseProjection();
+            query.accept(respProj);
 
-                    BountyPaginatorResponseProjection pagRespProj = new BountyPaginatorResponseProjection()
-                            .paginatorInfo(new PaginatorInfoResponseProjection()
-                                    .hasMorePages())
-                            .data(respProj);
+            BountyPaginatorResponseProjection pagRespProj = new BountyPaginatorResponseProjection().paginatorInfo(new PaginatorInfoResponseProjection().hasMorePages()).data(respProj);
 
-                    return new GraphQLRequest(request, pagRespProj);
-                }, errorBehavior, BountiesQueryResponse.class,
-                response -> {
-                    BountyPaginator paginator = response.bounties();
-                    PaginatorInfo pageInfo = paginator != null ? paginator.getPaginatorInfo() : null;
-                    return pageInfo != null && pageInfo.getHasMorePages();
-                }, result -> {
-                    BountyPaginator paginator = result.bounties();
-                    if (paginator != null) {
-                        List<Bounty> txs = paginator.getData();
-                        for (Bounty tx : txs) {
-                            if (recResults.test(tx)) allResults.add(tx);
-                        }
-                    }
-                });
+            return new GraphQLRequest(request, pagRespProj);
+        }, errorBehavior, BountiesQueryResponse.class, response -> {
+            BountyPaginator paginator = response.bounties();
+            PaginatorInfo pageInfo = paginator != null ? paginator.getPaginatorInfo() : null;
+            return pageInfo != null && pageInfo.getHasMorePages();
+        }, result -> {
+            BountyPaginator paginator = result.bounties();
+            if (paginator != null) {
+                List<Bounty> txs = paginator.getData();
+                for (Bounty tx : txs) {
+                    if (recResults.test(tx)) allResults.add(tx);
+                }
+            }
+        });
 
         return allResults;
     }
 
     public List<Treasure> fetchTreasures() {
-        TreasuresQueryResponse result = request(new TreasuresQueryRequest(), new TreasureResponseProjection()
-                        .name()
-                        .color()
-                        .continent()
-                        .bonus()
-                        .spawn_date()
-                        .nation_id(),
-                TreasuresQueryResponse.class);
+        TreasuresQueryResponse result = request(new TreasuresQueryRequest(), new TreasureResponseProjection().name().color().continent().bonus().spawn_date().nation_id(), TreasuresQueryResponse.class);
         if (result.treasures() == null) throw new GraphQLException("Error fetching colors");
         return result.treasures();
     }
@@ -358,34 +342,30 @@ public class PoliticsAndWarV3 {
         List<BBGame> allResults = new ArrayList<>();
 
         handlePagination(page -> {
-                    Baseball_gamesQueryRequest request = new Baseball_gamesQueryRequest();
-                    if (filter != null) filter.accept(request);
-                    request.setFirst(perPage);
-                    request.setPage(page);
+            Baseball_gamesQueryRequest request = new Baseball_gamesQueryRequest();
+            if (filter != null) filter.accept(request);
+            request.setFirst(perPage);
+            request.setPage(page);
 
-                    BBGameResponseProjection respProj = new BBGameResponseProjection();
-                    query.accept(respProj);
+            BBGameResponseProjection respProj = new BBGameResponseProjection();
+            query.accept(respProj);
 
-                    BBGamePaginatorResponseProjection pagRespProj = new BBGamePaginatorResponseProjection()
-                            .paginatorInfo(new PaginatorInfoResponseProjection()
-                                    .hasMorePages())
-                            .data(respProj);
+            BBGamePaginatorResponseProjection pagRespProj = new BBGamePaginatorResponseProjection().paginatorInfo(new PaginatorInfoResponseProjection().hasMorePages()).data(respProj);
 
-                    return new GraphQLRequest(request, pagRespProj);
-                }, errorBehavior, Baseball_gamesQueryResponse.class,
-                response -> {
-                    BBGamePaginator paginator = response.baseball_games();
-                    PaginatorInfo pageInfo = paginator != null ? paginator.getPaginatorInfo() : null;
-                    return pageInfo != null && pageInfo.getHasMorePages();
-                }, result -> {
-                    BBGamePaginator paginator = result.baseball_games();
-                    if (paginator != null) {
-                        List<BBGame> txs = paginator.getData();
-                        for (BBGame tx : txs) {
-                            if (recResults.test(tx)) allResults.add(tx);
-                        }
-                    }
-                });
+            return new GraphQLRequest(request, pagRespProj);
+        }, errorBehavior, Baseball_gamesQueryResponse.class, response -> {
+            BBGamePaginator paginator = response.baseball_games();
+            PaginatorInfo pageInfo = paginator != null ? paginator.getPaginatorInfo() : null;
+            return pageInfo != null && pageInfo.getHasMorePages();
+        }, result -> {
+            BBGamePaginator paginator = result.baseball_games();
+            if (paginator != null) {
+                List<BBGame> txs = paginator.getData();
+                for (BBGame tx : txs) {
+                    if (recResults.test(tx)) allResults.add(tx);
+                }
+            }
+        });
 
         return allResults;
     }
@@ -393,10 +373,7 @@ public class PoliticsAndWarV3 {
     public List<WarAttack> fetchAttacksSince(Integer maxId, Predicate<WarAttack> attackPredicate) {
         return fetchAttacks(ATTACKS_PER_PAGE, r -> {
             if (maxId != null) r.setMin_id(maxId + 1);
-            QueryWarattacksOrderByOrderByClause order = QueryWarattacksOrderByOrderByClause.builder()
-                    .setColumn(QueryWarattacksOrderByColumn.ID)
-                    .setOrder(SortOrder.ASC)
-                    .build();
+            QueryWarattacksOrderByOrderByClause order = QueryWarattacksOrderByOrderByClause.builder().setColumn(QueryWarattacksOrderByColumn.ID).setOrder(SortOrder.ASC).build();
             r.setOrderBy(List.of(order));
         }, warAttackInfo(), f -> ErrorResponse.EXIT, attackPredicate);
     }
@@ -443,34 +420,30 @@ public class PoliticsAndWarV3 {
         List<WarAttack> allResults = new ArrayList<>();
 
         handlePagination(page -> {
-                    WarattacksQueryRequest request = new WarattacksQueryRequest();
-                    if (filter != null) filter.accept(request);
-                    request.setFirst(perPage);
-                    request.setPage(page);
+            WarattacksQueryRequest request = new WarattacksQueryRequest();
+            if (filter != null) filter.accept(request);
+            request.setFirst(perPage);
+            request.setPage(page);
 
-                    WarAttackResponseProjection respProj = new WarAttackResponseProjection();
-                    query.accept(respProj);
+            WarAttackResponseProjection respProj = new WarAttackResponseProjection();
+            query.accept(respProj);
 
-                    WarAttackPaginatorResponseProjection pagRespProj = new WarAttackPaginatorResponseProjection()
-                            .paginatorInfo(new PaginatorInfoResponseProjection()
-                                    .hasMorePages())
-                            .data(respProj);
+            WarAttackPaginatorResponseProjection pagRespProj = new WarAttackPaginatorResponseProjection().paginatorInfo(new PaginatorInfoResponseProjection().hasMorePages()).data(respProj);
 
-                    return new GraphQLRequest(request, pagRespProj);
-                }, errorBehavior, WarattacksQueryResponse.class,
-                response -> {
-                    WarAttackPaginator paginator = response.warattacks();
-                    PaginatorInfo pageInfo = paginator != null ? paginator.getPaginatorInfo() : null;
-                    return pageInfo != null && pageInfo.getHasMorePages();
-                }, result -> {
-                    WarAttackPaginator paginator = result.warattacks();
-                    if (paginator != null) {
-                        List<WarAttack> txs = paginator.getData();
-                        for (WarAttack tx : txs) {
-                            if (recResults.test(tx)) allResults.add(tx);
-                        }
-                    }
-                });
+            return new GraphQLRequest(request, pagRespProj);
+        }, errorBehavior, WarattacksQueryResponse.class, response -> {
+            WarAttackPaginator paginator = response.warattacks();
+            PaginatorInfo pageInfo = paginator != null ? paginator.getPaginatorInfo() : null;
+            return pageInfo != null && pageInfo.getHasMorePages();
+        }, result -> {
+            WarAttackPaginator paginator = result.warattacks();
+            if (paginator != null) {
+                List<WarAttack> txs = paginator.getData();
+                for (WarAttack tx : txs) {
+                    if (recResults.test(tx)) allResults.add(tx);
+                }
+            }
+        });
 
         return allResults;
     }
@@ -498,34 +471,30 @@ public class PoliticsAndWarV3 {
         List<War> allResults = new ArrayList<>();
 
         handlePagination(page -> {
-                    WarsQueryRequest request = new WarsQueryRequest();
-                    if (filter != null) filter.accept(request);
-                    request.setFirst(perPage);
-                    request.setPage(page);
+            WarsQueryRequest request = new WarsQueryRequest();
+            if (filter != null) filter.accept(request);
+            request.setFirst(perPage);
+            request.setPage(page);
 
-                    WarResponseProjection respProj = new WarResponseProjection();
-                    query.accept(respProj);
+            WarResponseProjection respProj = new WarResponseProjection();
+            query.accept(respProj);
 
-                    WarPaginatorResponseProjection pagRespProj = new WarPaginatorResponseProjection()
-                            .paginatorInfo(new PaginatorInfoResponseProjection()
-                                    .hasMorePages())
-                            .data(respProj);
+            WarPaginatorResponseProjection pagRespProj = new WarPaginatorResponseProjection().paginatorInfo(new PaginatorInfoResponseProjection().hasMorePages()).data(respProj);
 
-                    return new GraphQLRequest(request, pagRespProj);
-                }, errorBehavior, WarsQueryResponse.class,
-                response -> {
-                    WarPaginator paginator = response.wars();
-                    PaginatorInfo pageInfo = paginator != null ? paginator.getPaginatorInfo() : null;
-                    return pageInfo != null && pageInfo.getHasMorePages();
-                }, result -> {
-                    WarPaginator paginator = result.wars();
-                    if (paginator != null) {
-                        List<War> txs = paginator.getData();
-                        for (War tx : txs) {
-                            if (recResults.test(tx)) allResults.add(tx);
-                        }
-                    }
-                });
+            return new GraphQLRequest(request, pagRespProj);
+        }, errorBehavior, WarsQueryResponse.class, response -> {
+            WarPaginator paginator = response.wars();
+            PaginatorInfo pageInfo = paginator != null ? paginator.getPaginatorInfo() : null;
+            return pageInfo != null && pageInfo.getHasMorePages();
+        }, result -> {
+            WarPaginator paginator = result.wars();
+            if (paginator != null) {
+                List<War> txs = paginator.getData();
+                for (War tx : txs) {
+                    if (recResults.test(tx)) allResults.add(tx);
+                }
+            }
+        });
 
         return allResults;
     }
@@ -582,34 +551,30 @@ public class PoliticsAndWarV3 {
         List<City> allResults = new ArrayList<>();
 
         handlePagination(page -> {
-                    CitiesQueryRequest request = new CitiesQueryRequest();
-                    if (filter != null) filter.accept(request);
-                    request.setFirst(perPage);
-                    request.setPage(page);
+            CitiesQueryRequest request = new CitiesQueryRequest();
+            if (filter != null) filter.accept(request);
+            request.setFirst(perPage);
+            request.setPage(page);
 
-                    CityResponseProjection natRespProj = new CityResponseProjection();
-                    query.accept(natRespProj);
+            CityResponseProjection natRespProj = new CityResponseProjection();
+            query.accept(natRespProj);
 
-                    CityPaginatorResponseProjection natPagRespProj = new CityPaginatorResponseProjection()
-                            .paginatorInfo(new PaginatorInfoResponseProjection()
-                                    .hasMorePages())
-                            .data(natRespProj);
+            CityPaginatorResponseProjection natPagRespProj = new CityPaginatorResponseProjection().paginatorInfo(new PaginatorInfoResponseProjection().hasMorePages()).data(natRespProj);
 
-                    return new GraphQLRequest(request, natPagRespProj);
-                }, errorBehavior, CitiesQueryResponse.class,
-                response -> {
-                    CityPaginator paginator = response.cities();
-                    PaginatorInfo pageInfo = paginator != null ? paginator.getPaginatorInfo() : null;
-                    return pageInfo != null && pageInfo.getHasMorePages();
-                }, result -> {
-                    CityPaginator paginator = result.cities();
-                    if (paginator != null) {
-                        List<City> cities = paginator.getData();
-                        for (City city : cities) {
-                            if (recResults.test(city)) allResults.add(city);
-                        }
-                    }
-                });
+            return new GraphQLRequest(request, natPagRespProj);
+        }, errorBehavior, CitiesQueryResponse.class, response -> {
+            CityPaginator paginator = response.cities();
+            PaginatorInfo pageInfo = paginator != null ? paginator.getPaginatorInfo() : null;
+            return pageInfo != null && pageInfo.getHasMorePages();
+        }, result -> {
+            CityPaginator paginator = result.cities();
+            if (paginator != null) {
+                List<City> cities = paginator.getData();
+                for (City city : cities) {
+                    if (recResults.test(city)) allResults.add(city);
+                }
+            }
+        });
 
         return allResults;
     }
@@ -671,34 +636,30 @@ public class PoliticsAndWarV3 {
         List<Bankrec> allResults = new ArrayList<>();
 
         handlePagination(page -> {
-                    BankrecsQueryRequest request = new BankrecsQueryRequest();
-                    if (filter != null) filter.accept(request);
-                    request.setFirst(perPage);
-                    request.setPage(page);
+            BankrecsQueryRequest request = new BankrecsQueryRequest();
+            if (filter != null) filter.accept(request);
+            request.setFirst(perPage);
+            request.setPage(page);
 
-                    BankrecResponseProjection natRespProj = new BankrecResponseProjection();
-                    query.accept(natRespProj);
+            BankrecResponseProjection natRespProj = new BankrecResponseProjection();
+            query.accept(natRespProj);
 
-                    BankrecPaginatorResponseProjection natPagRespProj = new BankrecPaginatorResponseProjection()
-                            .paginatorInfo(new PaginatorInfoResponseProjection()
-                                    .hasMorePages())
-                            .data(natRespProj);
+            BankrecPaginatorResponseProjection natPagRespProj = new BankrecPaginatorResponseProjection().paginatorInfo(new PaginatorInfoResponseProjection().hasMorePages()).data(natRespProj);
 
-                    return new GraphQLRequest(request, natPagRespProj);
-                }, errorBehavior, BankrecsQueryResponse.class,
-                response -> {
-                    BankrecPaginator paginator = response.bankrecs();
-                    PaginatorInfo pageInfo = paginator != null ? paginator.getPaginatorInfo() : null;
-                    return pageInfo != null && pageInfo.getHasMorePages();
-                }, result -> {
-                    BankrecPaginator paginator = result.bankrecs();
-                    if (paginator != null) {
-                        List<Bankrec> txs = paginator.getData();
-                        for (Bankrec tx : txs) {
-                            if (recResults.test(tx)) allResults.add(tx);
-                        }
-                    }
-                });
+            return new GraphQLRequest(request, natPagRespProj);
+        }, errorBehavior, BankrecsQueryResponse.class, response -> {
+            BankrecPaginator paginator = response.bankrecs();
+            PaginatorInfo pageInfo = paginator != null ? paginator.getPaginatorInfo() : null;
+            return pageInfo != null && pageInfo.getHasMorePages();
+        }, result -> {
+            BankrecPaginator paginator = result.bankrecs();
+            if (paginator != null) {
+                List<Bankrec> txs = paginator.getData();
+                for (Bankrec tx : txs) {
+                    if (recResults.test(tx)) allResults.add(tx);
+                }
+            }
+        });
 
         return allResults;
     }
@@ -778,6 +739,7 @@ public class PoliticsAndWarV3 {
             projection.espionage_available();
 
             projection.tax_id();
+            projection.gross_national_income();
 
             projection.wars_won();
             projection.wars_lost();
@@ -792,34 +754,30 @@ public class PoliticsAndWarV3 {
         List<Nation> allResults = new ArrayList<>();
 
         handlePagination(page -> {
-                    NationsQueryRequest request = new NationsQueryRequest();
-                    if (filter != null) filter.accept(request);
-                    request.setFirst(perPage);
-                    request.setPage(page);
+            NationsQueryRequest request = new NationsQueryRequest();
+            if (filter != null) filter.accept(request);
+            request.setFirst(perPage);
+            request.setPage(page);
 
-                    NationResponseProjection natRespProj = new NationResponseProjection();
-                    query.accept(natRespProj);
+            NationResponseProjection natRespProj = new NationResponseProjection();
+            query.accept(natRespProj);
 
-                    NationPaginatorResponseProjection natPagRespProj = new NationPaginatorResponseProjection()
-                            .paginatorInfo(new PaginatorInfoResponseProjection()
-                                    .hasMorePages())
-                            .data(natRespProj);
+            NationPaginatorResponseProjection natPagRespProj = new NationPaginatorResponseProjection().paginatorInfo(new PaginatorInfoResponseProjection().hasMorePages()).data(natRespProj);
 
-                    return new GraphQLRequest(request, natPagRespProj);
-                }, errorBehavior, NationsQueryResponse.class,
-                response -> {
-                    NationPaginator paginator = response.nations();
-                    PaginatorInfo pageInfo = paginator != null ? paginator.getPaginatorInfo() : null;
-                    return pageInfo != null && pageInfo.getHasMorePages();
-                }, result -> {
-                    NationPaginator paginator = result.nations();
-                    if (paginator != null) {
-                        List<Nation> nations = paginator.getData();
-                        for (Nation nation : nations) {
-                            if (nationResults.test(nation)) allResults.add(nation);
-                        }
-                    }
-                });
+            return new GraphQLRequest(request, natPagRespProj);
+        }, errorBehavior, NationsQueryResponse.class, response -> {
+            NationPaginator paginator = response.nations();
+            PaginatorInfo pageInfo = paginator != null ? paginator.getPaginatorInfo() : null;
+            return pageInfo != null && pageInfo.getHasMorePages();
+        }, result -> {
+            NationPaginator paginator = result.nations();
+            if (paginator != null) {
+                List<Nation> nations = paginator.getData();
+                for (Nation nation : nations) {
+                    if (nationResults.test(nation)) allResults.add(nation);
+                }
+            }
+        });
 
         return allResults;
     }
@@ -864,34 +822,30 @@ public class PoliticsAndWarV3 {
         List<Alliance> allResults = new ArrayList<>();
 
         handlePagination(page -> {
-                    AlliancesQueryRequest request = new AlliancesQueryRequest();
-                    if (filter != null) filter.accept(request);
-                    request.setFirst(perPage);
-                    request.setPage(page);
+            AlliancesQueryRequest request = new AlliancesQueryRequest();
+            if (filter != null) filter.accept(request);
+            request.setFirst(perPage);
+            request.setPage(page);
 
-                    AllianceResponseProjection natRespProj = new AllianceResponseProjection();
-                    query.accept(natRespProj);
+            AllianceResponseProjection natRespProj = new AllianceResponseProjection();
+            query.accept(natRespProj);
 
-                    AlliancePaginatorResponseProjection natPagRespProj = new AlliancePaginatorResponseProjection()
-                            .paginatorInfo(new PaginatorInfoResponseProjection()
-                                    .hasMorePages())
-                            .data(natRespProj);
+            AlliancePaginatorResponseProjection natPagRespProj = new AlliancePaginatorResponseProjection().paginatorInfo(new PaginatorInfoResponseProjection().hasMorePages()).data(natRespProj);
 
-                    return new GraphQLRequest(request, natPagRespProj);
-                }, errorBehavior, AlliancesQueryResponse.class,
-                response -> {
-                    AlliancePaginator paginator = response.alliances();
-                    PaginatorInfo pageInfo = paginator != null ? paginator.getPaginatorInfo() : null;
-                    return pageInfo != null && pageInfo.getHasMorePages();
-                }, result -> {
-                    AlliancePaginator paginator = result.alliances();
-                    if (paginator != null) {
-                        List<Alliance> alliances = paginator.getData();
-                        for (Alliance alliance : alliances) {
-                            if (addEachResult.test(alliance)) allResults.add(alliance);
-                        }
-                    }
-                });
+            return new GraphQLRequest(request, natPagRespProj);
+        }, errorBehavior, AlliancesQueryResponse.class, response -> {
+            AlliancePaginator paginator = response.alliances();
+            PaginatorInfo pageInfo = paginator != null ? paginator.getPaginatorInfo() : null;
+            return pageInfo != null && pageInfo.getHasMorePages();
+        }, result -> {
+            AlliancePaginator paginator = result.alliances();
+            if (paginator != null) {
+                List<Alliance> alliances = paginator.getData();
+                for (Alliance alliance : alliances) {
+                    if (addEachResult.test(alliance)) allResults.add(alliance);
+                }
+            }
+        });
 
         return allResults;
     }
@@ -930,34 +884,30 @@ public class PoliticsAndWarV3 {
         List<Treaty> allResults = new ArrayList<>();
 
         handlePagination(page -> {
-                    TreatiesQueryRequest request = new TreatiesQueryRequest();
-                    if (filter != null) filter.accept(request);
-                    request.setFirst(perPage);
-                    request.setPage(page);
+            TreatiesQueryRequest request = new TreatiesQueryRequest();
+            if (filter != null) filter.accept(request);
+            request.setFirst(perPage);
+            request.setPage(page);
 
-                    TreatyResponseProjection natRespProj = new TreatyResponseProjection();
-                    query.accept(natRespProj);
+            TreatyResponseProjection natRespProj = new TreatyResponseProjection();
+            query.accept(natRespProj);
 
-                    TreatyPaginatorResponseProjection natPagRespProj = new TreatyPaginatorResponseProjection()
-                            .paginatorInfo(new PaginatorInfoResponseProjection()
-                                    .hasMorePages())
-                            .data(natRespProj);
+            TreatyPaginatorResponseProjection natPagRespProj = new TreatyPaginatorResponseProjection().paginatorInfo(new PaginatorInfoResponseProjection().hasMorePages()).data(natRespProj);
 
-                    return new GraphQLRequest(request, natPagRespProj);
-                }, errorBehavior, TreatiesQueryResponse.class,
-                response -> {
-                    TreatyPaginator paginator = response.treaties();
-                    PaginatorInfo pageInfo = paginator != null ? paginator.getPaginatorInfo() : null;
-                    return pageInfo != null && pageInfo.getHasMorePages();
-                }, result -> {
-                    TreatyPaginator paginator = result.treaties();
-                    if (paginator != null) {
-                        List<Treaty> treaties = paginator.getData();
-                        for (Treaty treaty : treaties) {
-                            if (addEachResult.test(treaty)) allResults.add(treaty);
-                        }
-                    }
-                });
+            return new GraphQLRequest(request, natPagRespProj);
+        }, errorBehavior, TreatiesQueryResponse.class, response -> {
+            TreatyPaginator paginator = response.treaties();
+            PaginatorInfo pageInfo = paginator != null ? paginator.getPaginatorInfo() : null;
+            return pageInfo != null && pageInfo.getHasMorePages();
+        }, result -> {
+            TreatyPaginator paginator = result.treaties();
+            if (paginator != null) {
+                List<Treaty> treaties = paginator.getData();
+                for (Treaty treaty : treaties) {
+                    if (addEachResult.test(treaty)) allResults.add(treaty);
+                }
+            }
+        });
 
         return allResults;
     }
@@ -967,21 +917,44 @@ public class PoliticsAndWarV3 {
     }
 
     public ApiKeyDetails getApiKeyStats() {
-        MeQueryResponse result = request(new MeQueryRequest(), new ApiKeyDetailsResponseProjection()
-                        .key()
-                        .max_requests()
-                        .requests()
-                        .nation(new NationResponseProjection().id()),
-                MeQueryResponse.class);
+        MeQueryResponse result = request(new MeQueryRequest(), new ApiKeyDetailsResponseProjection().key().max_requests().requests().nation(new NationResponseProjection().id()), MeQueryResponse.class);
         if (result.me() == null) throw new GraphQLException("Error fetching api key");
         return result.me();
     }
 
+    public Tradeprice getTradePrice() {
+        List<Tradeprice> allResults = new ArrayList<>();
+
+        handlePagination(page -> {
+            TradepricesQueryRequest request = new TradepricesQueryRequest();
+            request.setFirst(1);
+            request.setPage(page);
+
+            TradepriceResponseProjection proj = new TradepriceResponseProjection()
+//                        .id()
+                    .coal().oil().uranium().iron().bauxite().lead().gasoline().munitions().steel().aluminum().food().credits();
+
+            TradepricePaginatorResponseProjection natPagRespProj = new TradepricePaginatorResponseProjection().paginatorInfo(new PaginatorInfoResponseProjection().hasMorePages()).data(proj);
+
+            return new GraphQLRequest(request, natPagRespProj);
+        }, f -> ErrorResponse.THROW, TradepricesQueryResponse.class, response -> {
+//                    TradepricePaginator paginator = response.tradeprices();
+//                    PaginatorInfo pageInfo = paginator != null ? paginator.getPaginatorInfo() : null;
+            return false;
+        }, result -> {
+            TradepricePaginator paginator = result.tradeprices();
+            if (paginator != null) {
+                List<Tradeprice> results = paginator.getData();
+                for (Tradeprice price : results) {
+                    allResults.add(price);
+                }
+            }
+        });
+        return allResults.get(0);
+    }
+
     public GameInfo getGameInfo() {
-        Game_infoQueryResponse result = request(new Game_infoQueryRequest(), new GameInfoResponseProjection()
-                        .game_date()
-                        .radiation(new RadiationResponseProjection().all$()),
-                Game_infoQueryResponse.class);
+        Game_infoQueryResponse result = request(new Game_infoQueryRequest(), new GameInfoResponseProjection().game_date().radiation(new RadiationResponseProjection().all$()), Game_infoQueryResponse.class);
         if (result.game_info() == null) throw new GraphQLException("Error fetching game info " + result);
         return result.game_info();
     }
@@ -1143,14 +1116,7 @@ public class PoliticsAndWarV3 {
     }
 
     private TreatyResponseProjection treatyResponseProjection() {
-        return new TreatyResponseProjection()
-                .id()
-                .alliance1_id()
-                .alliance2_id()
-                .treaty_type()
-                .treaty_url()
-                .approved()
-                .turns_left();
+        return new TreatyResponseProjection().id().alliance1_id().alliance2_id().treaty_type().treaty_url().approved().turns_left();
     }
 
     public Treaty approveTreaty(int id) {
@@ -1175,15 +1141,7 @@ public class PoliticsAndWarV3 {
     }
 
     private TaxBracketResponseProjection createTaxBracketProjection() {
-        TaxBracketResponseProjection projection = new TaxBracketResponseProjection()
-                .id()
-                .alliance_id()
-                .date()
-                .date_modified()
-                .last_modifier_id()
-                .tax_rate()
-                .resource_tax_rate()
-                .bracket_name();
+        TaxBracketResponseProjection projection = new TaxBracketResponseProjection().id().alliance_id().date().date_modified().last_modifier_id().tax_rate().resource_tax_rate().bracket_name();
         return projection;
     }
 
@@ -1275,32 +1233,29 @@ public class PoliticsAndWarV3 {
         List<Embargo> allResults = new ArrayList<>();
 
         handlePagination(page -> {
-                    EmbargoesQueryRequest request = new EmbargoesQueryRequest();
-                    if (filter != null) filter.accept(request);
-                    request.setFirst(EMBARGO_PER_PAGE);
-                    request.setPage(page);
+            EmbargoesQueryRequest request = new EmbargoesQueryRequest();
+            if (filter != null) filter.accept(request);
+            request.setFirst(EMBARGO_PER_PAGE);
+            request.setPage(page);
 
-                    EmbargoResponseProjection respProj = new EmbargoResponseProjection();
-                    query.accept(respProj);
+            EmbargoResponseProjection respProj = new EmbargoResponseProjection();
+            query.accept(respProj);
 
-                    EmbargoPaginatorResponseProjection pagRespProj = new EmbargoPaginatorResponseProjection()
-                            .paginatorInfo(new PaginatorInfoResponseProjection().hasMorePages())
-                            .data(respProj);
-                    return new GraphQLRequest(request, pagRespProj);
-                }, f -> ErrorResponse.THROW, EmbargoesQueryResponse.class,
-                response -> {
-                    EmbargoPaginator paginator = response.embargoes();
-                    PaginatorInfo pageInfo = paginator != null ? paginator.getPaginatorInfo() : null;
-                    return pageInfo != null && pageInfo.getHasMorePages();
-                }, result -> {
-                    EmbargoPaginator paginator = result.embargoes();
-                    if (paginator != null) {
-                        List<Embargo> nations = paginator.getData();
-                        for (Embargo elem : nations) {
-                            if (embargoResults.test(elem)) allResults.add(elem);
-                        }
-                    }
-                });
+            EmbargoPaginatorResponseProjection pagRespProj = new EmbargoPaginatorResponseProjection().paginatorInfo(new PaginatorInfoResponseProjection().hasMorePages()).data(respProj);
+            return new GraphQLRequest(request, pagRespProj);
+        }, f -> ErrorResponse.THROW, EmbargoesQueryResponse.class, response -> {
+            EmbargoPaginator paginator = response.embargoes();
+            PaginatorInfo pageInfo = paginator != null ? paginator.getPaginatorInfo() : null;
+            return pageInfo != null && pageInfo.getHasMorePages();
+        }, result -> {
+            EmbargoPaginator paginator = result.embargoes();
+            if (paginator != null) {
+                List<Embargo> nations = paginator.getData();
+                for (Embargo elem : nations) {
+                    if (embargoResults.test(elem)) allResults.add(elem);
+                }
+            }
+        });
 
         return allResults;
     }
@@ -1309,42 +1264,35 @@ public class PoliticsAndWarV3 {
         List<Trade> allResults = new ArrayList<>();
 
         handlePagination(page -> {
-                    TradesQueryRequest request = new TradesQueryRequest();
-                    if (filter != null) filter.accept(request);
-                    request.setFirst(perPage);
-                    request.setPage(page);
+            TradesQueryRequest request = new TradesQueryRequest();
+            if (filter != null) filter.accept(request);
+            request.setFirst(perPage);
+            request.setPage(page);
 
-                    TradeResponseProjection respProj = new TradeResponseProjection();
-                    query.accept(respProj);
+            TradeResponseProjection respProj = new TradeResponseProjection();
+            query.accept(respProj);
 
-                    TradePaginatorResponseProjection pagRespProj = new TradePaginatorResponseProjection()
-                            .paginatorInfo(new PaginatorInfoResponseProjection().hasMorePages())
-                            .data(respProj);
-                    return new GraphQLRequest(request, pagRespProj);
-                }, errorBehavior, TradesQueryResponse.class,
-                response -> {
-                    TradePaginator paginator = response.trades();
-                    PaginatorInfo pageInfo = paginator != null ? paginator.getPaginatorInfo() : null;
-                    return pageInfo != null && pageInfo.getHasMorePages();
-                }, result -> {
-                    TradePaginator paginator = result.trades();
-                    if (paginator != null) {
-                        List<Trade> nations = paginator.getData();
-                        for (Trade trade : nations) {
-                            if (tradeResults.test(trade)) allResults.add(trade);
-                        }
-                    }
-                });
+            TradePaginatorResponseProjection pagRespProj = new TradePaginatorResponseProjection().paginatorInfo(new PaginatorInfoResponseProjection().hasMorePages()).data(respProj);
+            return new GraphQLRequest(request, pagRespProj);
+        }, errorBehavior, TradesQueryResponse.class, response -> {
+            TradePaginator paginator = response.trades();
+            PaginatorInfo pageInfo = paginator != null ? paginator.getPaginatorInfo() : null;
+            return pageInfo != null && pageInfo.getHasMorePages();
+        }, result -> {
+            TradePaginator paginator = result.trades();
+            if (paginator != null) {
+                List<Trade> nations = paginator.getData();
+                for (Trade trade : nations) {
+                    if (tradeResults.test(trade)) allResults.add(trade);
+                }
+            }
+        });
 
         return allResults;
     }
 
     public List<Color> getColors() {
-        ColorsQueryResponse result = request(new ColorsQueryRequest(), new ColorResponseProjection()
-                        .color()
-                        .bloc_name()
-                        .turn_bonus(),
-                ColorsQueryResponse.class);
+        ColorsQueryResponse result = request(new ColorsQueryRequest(), new ColorResponseProjection().color().bloc_name().turn_bonus(), ColorsQueryResponse.class);
         if (result.colors() == null) throw new GraphQLException("Error fetching colors");
         return result.colors();
     }
@@ -1360,10 +1308,7 @@ public class PoliticsAndWarV3 {
     }
 
     public enum ErrorResponse {
-        CONTINUE,
-        RETRY,
-        EXIT,
-        THROW
+        CONTINUE, RETRY, EXIT, THROW
     }
 
     private static class RateLimit {

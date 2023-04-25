@@ -8,7 +8,8 @@ import link.locutus.discord.commands.manager.v2.binding.validator.ValidatorStore
 import link.locutus.discord.commands.manager.v2.command.CommandGroup;
 import link.locutus.discord.commands.manager.v2.impl.pw.binding.PermissionBinding;
 import link.locutus.discord.commands.manager.v2.perm.PermissionHandler;
-import link.locutus.discord.web.commands.binding.WebPrimitiveBinding;
+import link.locutus.discord.web.commands.binding.AuthBindings;
+import link.locutus.discord.web.commands.binding.WebPWBindings;
 
 public class Test2 {
     private final CommandGroup commands;
@@ -18,8 +19,10 @@ public class Test2 {
 
     public Test2() throws NoSuchFieldException {
         this.store = new SimpleValueStore<>();
-        new WebPrimitiveBinding().register(store);
+        new WebPWBindings().register(store);
         new PrimitiveBindings().register(store);
+
+        new AuthBindings().register(store);
 
         this.validators = new ValidatorStore();
         new PrimitiveValidators().register(validators);

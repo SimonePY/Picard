@@ -43,6 +43,7 @@ import com.google.common.eventbus.EventBus;
 import link.locutus.discord.apiv1.PoliticsAndWarBuilder;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.JDABuilder;
+import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.GuildMessageChannel;
 import net.dv8tion.jda.api.entities.Member;
@@ -1155,8 +1156,6 @@ public final class Locutus extends ListenerAdapter {
         commandManager.run(cmdEvent, async, false);
         return true;
     }
-
-
 
     public void onMessageReact(Message message, User user, MessageReaction.ReactionEmote emote, long responseId, boolean async) {
         List<MessageEmbed> embeds = message.getEmbeds();
