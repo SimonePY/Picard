@@ -24,6 +24,7 @@ import link.locutus.discord.config.Settings;
 import link.locutus.discord.config.yaml.file.YamlConfiguration;
 import link.locutus.discord.db.GuildDB;
 import link.locutus.discord.db.entities.DBNation;
+import link.locutus.discord.gpt.PWGPTHandler;
 import link.locutus.discord.util.StringMan;
 import link.locutus.discord.util.discord.DiscordUtil;
 import link.locutus.discord.web.test.TestCommands;
@@ -34,6 +35,7 @@ import org.json.JSONObject;
 
 import javax.annotation.Nullable;
 import java.io.File;
+import java.sql.SQLException;
 import java.util.*;
 import java.util.function.Supplier;
 import java.util.regex.Matcher;
@@ -46,6 +48,7 @@ public class CommandManager2 {
     private final PermissionHandler permisser;
     private final NationPlaceholders nationPlaceholders;
     private final AlliancePlaceholders alliancePlaceholders;
+    private PWGPTHandler pwgptHandler;
 
     public CommandManager2() {
         this.store = new SimpleValueStore<>();
@@ -53,7 +56,7 @@ public class CommandManager2 {
         new DiscordBindings().register(store);
         new PWBindings().register(store);
         new SheetBindings().register(store);
-        new StockBinding().register(store);
+//        new StockBinding().register(store);
 
         this.validators = new ValidatorStore();
         new PrimitiveValidators().register(validators);
@@ -65,6 +68,18 @@ public class CommandManager2 {
         this.alliancePlaceholders = new AlliancePlaceholders(store, validators, permisser);
 
         this.commands = CommandGroup.createRoot(store, validators);
+
+        if (!Settings.INSTANCE.OPENAI_API_KEY.isEmpty()) {
+            try {
+                pwgptHandler = new PWGPTHandler(this);
+            } catch (SQLException | ClassNotFoundException e) {
+                throw new RuntimeException(e);
+            }
+        }
+    }
+
+    public PWGPTHandler getPwgptHandler() {
+        return pwgptHandler;
     }
 
     public static Map<String, String> parseArguments(Set<String> params, String input, boolean checkUnbound) {
@@ -122,21 +137,45 @@ public class CommandManager2 {
         return result;
     }
 
-    public static void main(String[] args) {
-        boolean checkUnbound = true;
-        Set<String> params = new HashSet<>(Arrays.asList("hello", "world"));
-        String input = "hello: test testing world: blah something.";
-        Map<String, String> result = parseArguments(params, input, checkUnbound);
-        System.out.println("Result " + StringMan.getString(result));
-    }
-
     public CommandManager2 registerDefaults() {
+        // nap command  - UtilityCommands
+
         this.commands.registerCommandsWithMapping(CM.class, false, false);
         this.commands.registerMethod(new TestCommands(), List.of("test"), "embed", "embed");
         this.commands.registerMethod(new BankCommands(), List.of("tax"), "taxInfo", "info");
 
         this.commands.registerMethod(new UnsortedCommands(), List.of("alerts"), "loginNotifier", "login");
         this.commands.registerMethod(new IACommands(), List.of("sheets_ia"), "dayChangeSheet", "daychange");
+
+        this.commands.registerMethod(new WarCommands(), List.of("sheets_milcom"), "convertDtCSpySheet", "convertdtcspysheet");
+        this.commands.registerMethod(new WarCommands(), List.of("spy", "sheet"), "convertDtCSpySheet", "convertdtc");
+
+        this.commands.registerMethod(new EmbedCommands(), List.of("embed", "template"), "raid", "raid");
+        this.commands.registerMethod(new EmbedCommands(), List.of("embed", "template"), "warWinning", "war_winning");
+        this.commands.registerMethod(new EmbedCommands(), List.of("embed", "template"), "spyEnemy", "spy_enemy");
+        this.commands.registerMethod(new EmbedCommands(), List.of("embed", "template"), "warContestedRange", "war_contested_range");
+        this.commands.registerMethod(new EmbedCommands(), List.of("embed", "template"), "warGuerilla", "guerilla");
+        this.commands.registerMethod(new EmbedCommands(), List.of("embed", "template"), "unblockadeRequests", "unblockade_requests");
+        this.commands.registerMethod(new EmbedCommands(), List.of("embed", "template"), "allyEnemySheets", "ally_enemy_sheets");
+        this.commands.registerMethod(new EmbedCommands(), List.of("embed", "template"), "spySheets", "spy_sheets");
+        this.commands.registerMethod(new WarCommands(), List.of("war", "room"), "warRoomSheet", "from_sheet");
+        this.commands.registerMethod(new UnsortedCommands(), List.of("alerts"), "loginNotifier", "login");
+
+        this.commands.registerMethod(new UnsortedCommands(), List.of("spy", "sheet"), "freeSpyOpsSheet", "free_ops");
+
+        if (pwgptHandler != null) {
+//            HelpCommands help = new HelpCommands();
+//            this.commands.registerMethod(help, List.of("help"), "find_command", "find_command");
+//            this.commands.registerMethod(help, List.of("help"), "find_setting", "find_setting");
+
+            pwgptHandler.registerDefaults();
+        }
+
+
+
+//        this.commands.registerMethod(new EmbedCommands(), List.of("embed", "template"), "intel", "intel");
+
+//        this.commands.registerMethod(new EmbedCommands(), List.of("embed", "template"), "spyEnemy", "spy_enemy");
 
 //        this.commands.registerSubCommands(new BuildCommands(), "build");
 //        this.commands.registerMethod(new StatCommands(), List.of("stats_other"), "radiationByTurn", null);
@@ -238,7 +277,8 @@ public class CommandManager2 {
     }
 
     public void run(MessageReceivedEvent event, boolean async) {
-        Guild guild = event.isFromGuild() ? event.getGuild() : null;
+        Guild guild = event.isFromGuild() ? event.getGuild() : event.getMessage().isFromGuild() ? event.getMessage().getGuild() : null;
+        System.out.println("Guild " + guild);
         DiscordChannelIO io = new DiscordChannelIO(event.getChannel(), event::getMessage);
         User user = event.getAuthor();
         String fullCmdStr = DiscordUtil.trimContent(event.getMessage().getContentRaw()).trim();
@@ -363,15 +403,19 @@ public class CommandManager2 {
                 Map<String, String> finalArguments = new LinkedHashMap<>(arguments);
                 finalArguments.remove("");
 
-                LocalValueStore<Object> locals = createLocals(existingLocals, null, null, null, null, io, argsAndCmd);
+                LocalValueStore<Object> finalLocals = createLocals(existingLocals, null, null, null, null, io, argsAndCmd);
                 if (callable instanceof ParametricCallable parametric) {
                     handleCall(io, () -> {
-                        Object[] parsed = parametric.parseArgumentMap(finalArguments, locals, validators, permisser);
-                        return parametric.call(null, locals, parsed);
+                        Object[] parsed = parametric.parseArgumentMap(finalArguments, finalLocals, validators, permisser);
+                        System.out.println("Run cmd " + path + " with " + Arrays.toString(parsed) + " and " + finalLocals);
+                        return parametric.call(null, finalLocals, parsed);
                     });
                 } else if (callable instanceof CommandGroup group) {
-                    handleCall(io, group, locals);
-                } else throw new IllegalArgumentException("Invalid command class " + callable.getClass());
+                    handleCall(io, group, finalLocals);
+                } else {
+                    System.out.println("Invalid command class " + callable.getClass());
+                    throw new IllegalArgumentException("Invalid command class " + callable.getClass());
+                }
             } catch (Throwable e) {
                 e.printStackTrace();
             }

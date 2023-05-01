@@ -233,16 +233,25 @@ public class WarUpdateProcessor {
 
     public static void handleWarRooms(List<Map.Entry<DBWar, DBWar>> wars) {
         try {
-            Map<Integer, Set<WarCategory>> warCats = new HashMap<>();
+            Map<Integer, Set<WarCategory>> warCatsByAA = new HashMap<>();
+            Map<Integer, Set<WarCategory>> warCatsByRoom = new HashMap<>();
+
             for (GuildDB db : Locutus.imp().getGuildDatabases().values()) {
                 if (db.isDelegateServer()) continue;
                 WarCategory warCat = db.getWarChannel();
                 if (warCat != null) {
                     for (int ally : warCat.getTrackedAllianceIds()) {
-                        warCats.computeIfAbsent(ally, f -> new HashSet<>()).add(warCat);
+                        warCatsByAA.computeIfAbsent(ally, f -> new HashSet<>()).add(warCat);
+                    }
+                    for (WarCategory.WarRoom room : warCat.getWarRoomMap().values()) {
+                        if (room.channel != null && room.target != null) {
+                            warCatsByRoom.computeIfAbsent(room.target.getId(), f -> new HashSet<>()).add(warCat);
+                        }
                     }
                 }
             }
+
+
 
             Set<WarCategory> toUpdate = new LinkedHashSet<>();
             for (Map.Entry<DBWar, DBWar> pair : wars) {
@@ -251,8 +260,10 @@ public class WarUpdateProcessor {
                 if (!toUpdate.isEmpty()) {
                     toUpdate.clear();
                 }
-                toUpdate.addAll(warCats.getOrDefault(current.attacker_aa, Collections.emptySet()));
-                toUpdate.addAll(warCats.getOrDefault(current.defender_aa, Collections.emptySet()));
+                toUpdate.addAll(warCatsByAA.getOrDefault(current.attacker_aa, Collections.emptySet()));
+                toUpdate.addAll(warCatsByAA.getOrDefault(current.defender_aa, Collections.emptySet()));
+                toUpdate.addAll(warCatsByRoom.getOrDefault(current.attacker_id, Collections.emptySet()));
+                toUpdate.addAll(warCatsByRoom.getOrDefault(current.defender_id, Collections.emptySet()));
                 if (!toUpdate.isEmpty()) {
                     if (wars.size() > 25 && RateLimitUtil.getCurrentUsed() > 55) {
                         while (RateLimitUtil.getCurrentUsed(true) > 55) {
@@ -819,7 +830,7 @@ public class WarUpdateProcessor {
                     AlertUtil.forEachChannel(f -> true, GuildDB.Key.ESCALATION_ALERTS, new BiConsumer<MessageChannel, GuildDB>() {
                         @Override
                         public void accept(MessageChannel channel, GuildDB guildDB) {
-                            card.embed(new DiscordChannelIO(channel, null));
+                            card.embed(new DiscordChannelIO(channel), false, true);
                         }
                     });
                 } else if (defender.getOff() > 0 && stat.type != CounterType.UNCONTESTED) {
@@ -840,7 +851,7 @@ public class WarUpdateProcessor {
                         AlertUtil.forEachChannel(f -> true, GuildDB.Key.ESCALATION_ALERTS, new BiConsumer<MessageChannel, GuildDB>() {
                             @Override
                             public void accept(MessageChannel channel, GuildDB guildDB) {
-                                card.embed(new DiscordChannelIO(channel, null));
+                                card.embed(new DiscordChannelIO(channel), false, true);
                             }
                         });
                     }
@@ -965,13 +976,13 @@ public class WarUpdateProcessor {
             boolean warring = isAtWar.getOrDefault(alliance, false);
             if (lastWarring && lastWarRatio > 0.2) warring = true;
 
-            if (currentRatio > lastWarRatio || warring != lastWarring) {
+            if (currentRatio != lastWarRatio || warring != lastWarring) {
                 alliance.setMeta(AllianceMeta.LAST_BLITZ_PCT, currentRatio);
             }
             if (warring != lastWarring) {
                 alliance.setMeta(AllianceMeta.IS_WARRING, (byte) (warring ? 1 : 0));
             }
-            if (warring) alliance.setMeta(AllianceMeta.LAST_AT_WAR_TURN, currentTurn);
+            if (lastWarTurn != currentTurn) alliance.setMeta(AllianceMeta.LAST_AT_WAR_TURN, currentTurn);
 
             String body = warInfo.get(alliance);
 

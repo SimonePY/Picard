@@ -3,7 +3,10 @@ package link.locutus.discord.commands.manager.v2.impl.pw.commands;
 import link.locutus.discord.Locutus;
 import link.locutus.discord.apiv1.enums.NationColor;
 import link.locutus.discord.apiv3.enums.NationLootType;
+import link.locutus.discord.commands.manager.v2.binding.Key;
+import link.locutus.discord.commands.manager.v2.binding.LocalValueStore;
 import link.locutus.discord.commands.manager.v2.binding.ValueStore;
+import link.locutus.discord.commands.manager.v2.binding.annotation.Arg;
 import link.locutus.discord.commands.manager.v2.binding.annotation.Command;
 import link.locutus.discord.commands.manager.v2.binding.annotation.Default;
 import link.locutus.discord.commands.manager.v2.binding.annotation.Me;
@@ -528,7 +531,8 @@ public class UtilityCommands {
         return "Set " + offshore.getName() + " as an offshore for " + parent.getName();
     }
 
-    @Command
+    @Command(desc = "Return potential offshores for a list of enemy alliances\n" +
+            "If allies are specified, only offshores that are not allied with any of the allies will be returned")
     @RolePermission(value = {Roles.ECON, Roles.MILCOM}, any = true)
     public String findOffshores(@Timestamp long cutoff, Set<DBAlliance> enemiesList, @Default() Set<DBAlliance> alliesList) {
         if (alliesList == null) alliesList = Collections.emptySet();
@@ -746,14 +750,22 @@ public class UtilityCommands {
 
         return "**" + title + "**\n" + response.toString();
     }
-    @Command
+    @Command(desc = "Rank the number of wars between two coalitions by nation or alliance\n" +
+            "Defaults to alliance ranking")
     public String warRanking(@Me JSONObject command, @Me IMessageIO channel, @Timestamp long time, Set<NationOrAlliance> attackers, Set<NationOrAlliance> defenders,
+                             @Arg("Only include offensive wars in the ranking")
                              @Switch("o") boolean onlyOffensives,
+                             @Arg("Only include defensive wars in the ranking")
                              @Switch("d") boolean onlyDefensives,
+                             @Arg("Rank the average wars per alliance member")
                              @Switch("n") boolean normalizePerMember,
+                             @Arg("Ignore inactive nations when determining alliance member counts")
                              @Switch("i") boolean ignore2dInactives,
+                             @Arg("Rank by nation instead of alliance")
                              @Switch("a") boolean rankByNation,
+                             @Arg("Only rank these war types")
                              @Switch("t") WarType warType,
+                             @Arg("Only rank wars with these statuses")
                              @Switch("s") Set<WarStatus> statuses) {
         WarParser parser = WarParser.of(attackers, defenders, time, Long.MAX_VALUE);
         Map<Integer, DBWar> wars = parser.getWars();
@@ -813,7 +825,12 @@ public class UtilityCommands {
     }
 
     @Command(desc = "Calculate the costs of purchasing infra (from current to max)", aliases = {"InfraCost", "infrastructurecost", "infra", "infrastructure", "infracosts"})
-    public String InfraCost(@Range(min=0, max=40000) int currentInfra, @Range(min=0, max=40000) int maxInfra, @Default("false") boolean urbanization, @Default("false") boolean cce, @Default("false") boolean aec, @Default("false") boolean gsa, @Switch("c") @Default("1") int cities) {
+    public String InfraCost(@Range(min=0, max=40000) int currentInfra, @Range(min=0, max=40000) int maxInfra,
+                            @Default("false") boolean urbanization,
+                            @Default("false") boolean center_for_civil_engineering,
+                            @Default("false") boolean advanced_engineering_corps,
+                            @Default("false") boolean government_support_agency,
+                            @Switch("c") @Default("1") int cities) {
         if (maxInfra > 40000) throw new IllegalArgumentException("Max infra 40000");
 
         double total = 0;
@@ -823,12 +840,12 @@ public class UtilityCommands {
         double discountFactor = 1;
         if (urbanization) {
             discountFactor -= 0.05;
-            if (gsa) {
+            if (government_support_agency) {
                 discountFactor -= 0.025;
             }
         }
-        if (cce) discountFactor -= 0.05;
-        if (aec) discountFactor -= 0.05;
+        if (center_for_civil_engineering) discountFactor -= 0.05;
+        if (advanced_engineering_corps) discountFactor -= 0.05;
 
         total = total * discountFactor * cities;
 
@@ -836,7 +853,13 @@ public class UtilityCommands {
     }
 
     @Command(desc = "Calculate the costs of purchasing land (from current to max)", aliases = {"LandCost", "land", "landcosts"})
-    public String LandCost(@Range(min=0, max=40000) int currentLand, @Range(min=0, max=40000) int maxLand, @Default("false") boolean rapidExpansion, @Default("false") boolean ala, @Default("false") boolean aec, @Default("false") boolean gsa, @Switch("c") @Default("1") int cities) {
+    public String LandCost(@Range(min=0, max=40000) int currentLand,
+                           @Range(min=0, max=40000) int maxLand,
+                           @Default("false") boolean rapidExpansion,
+                           @Default("false") boolean arable_land_agency,
+                           @Default("false") boolean advanced_engineering_corps,
+                           @Default("false") boolean government_support_agency,
+                           @Switch("c") @Default("1") int cities) {
         if (maxLand > 40000) throw new IllegalArgumentException("Max land 40000");
 
         double total = 0;
@@ -846,10 +869,10 @@ public class UtilityCommands {
         double discountFactor = 1;
         if (rapidExpansion) {
             discountFactor -= 0.05;
-            if (gsa) discountFactor -= 0.025;
+            if (government_support_agency) discountFactor -= 0.025;
         }
-        if (ala) discountFactor -= 0.05;
-        if (aec) discountFactor -= 0.05;
+        if (arable_land_agency) discountFactor -= 0.05;
+        if (advanced_engineering_corps) discountFactor -= 0.05;
 
         total = total * discountFactor * cities;
 
@@ -976,9 +999,16 @@ public class UtilityCommands {
         return response.toString();
     }
 
-    @Command
+    @Command(desc = "Get nation or bank loot history\n" +
+            "Shows how much you will receive if you defeat a nation")
     @RolePermission(Roles.MEMBER)
-    public static String loot(@Me IMessageIO output, @Me DBNation me, NationOrAlliance nationOrAlliance, @Default Double nationScore, @Switch("p") boolean pirate) {
+    public static String loot(@Me IMessageIO output, @Me DBNation me, NationOrAlliance nationOrAlliance,
+                              @Arg("Score of the defeated nation\n" +
+                                      "i.e. For determining bank loot percent")
+                              @Default Double nationScore,
+                              @Arg("Loot with pirate war policy\n" +
+                                      "Else: Uses your war policy")
+                              @Switch("p") boolean pirate) {
         double[] totalStored = null;
         double[] nationLoot = null;
         double[] allianceLoot = null;
@@ -1031,7 +1061,7 @@ public class UtilityCommands {
 
             revenueTurns = nation.getTurnsInactive(lootInfo);
             if (revenueTurns > 0) {
-                revenue = nation.getRevenue(revenueTurns + 24, true, true, false, true, false, false);
+                revenue = nation.getRevenue(revenueTurns + 24, true, true, false, true, false, false, false);
                 if (lootInfo != null) {
                     revenue = PnwUtil.capManuFromRaws(revenue, lootInfo.getTotal_rss());
                 }
@@ -1221,10 +1251,14 @@ public class UtilityCommands {
     }
 
     @RolePermission(value = {Roles.MILCOM, Roles.INTERNAL_AFFAIRS,Roles.ECON,Roles.FOREIGN_AFFAIRS}, any=true)
-    @Command(desc = "Create an alliance sheet.\n" +
-            "See `{prefix}placeholders Alliance` for a list of placeholders")
+    @Command(desc = "Create a sheet of alliances with customized columns\n" +
+            "See <https://github.com/xdnw/locutus/wiki/Nation-Filters> for a list of placeholders")
     @WhitelistPermission
-    public String AllianceSheet(NationPlaceholders placeholders, ValueStore store, @Me Guild guild, @Me IMessageIO channel, @Me User author, @Me GuildDB db, Set<DBNation> nations, List<String> columns,
+    public String AllianceSheet(NationPlaceholders placeholders, ValueStore store, @Me Guild guild, @Me IMessageIO channel, @Me User author, @Me GuildDB db,
+                                @Arg("The nations to include in each alliance")
+                                Set<DBNation> nations,
+                                @Arg("The columns to use in the sheet")
+                                List<String> columns,
                                 @Switch("s") SpreadSheet sheet) throws GeneralSecurityException, IOException, IllegalAccessException {
         if (sheet == null) {
             sheet = SpreadSheet.create(db, GuildDB.Key.ALLIANCES_SHEET);
@@ -1292,10 +1326,14 @@ public class UtilityCommands {
     }
 
     @RolePermission(value = {Roles.MILCOM, Roles.ECON, Roles.INTERNAL_AFFAIRS}, any=true)
-    @Command
-    public String NationSheet(ValueStore store, NationPlaceholders placeholders, @Me IMessageIO channel, @Me User author, @Me GuildDB db, Set<DBNation> nations, List<String> columns,
-                              @Switch("e") boolean updateSpies, @Switch("s") SpreadSheet sheet,
-                              @Switch("t") boolean updateTimer) throws GeneralSecurityException, IOException {
+    @Command(desc = "A sheet of nations stats with customizable columns\n" +
+            "See <https://github.com/xdnw/locutus/wiki/Nation-Filters> for a list of placeholders")
+    public static void NationSheet(ValueStore store, NationPlaceholders placeholders, @Me IMessageIO channel, @Me GuildDB db, Set<DBNation> nations,
+                                   @Arg("A space separated list of columns to use in the sheet\n" +
+                                           "Can include NationAttribute as placeholders in columns\n" +
+                                           "All NationAttribute placeholders must be surrounded by {} e.g. {nation}")
+                                   List<String> columns,
+                              @Switch("e") boolean updateSpies, @Switch("s") SpreadSheet sheet) throws GeneralSecurityException, IOException {
         if (sheet == null) {
             sheet = SpreadSheet.create(db, GuildDB.Key.NATION_SHEET);
         }
@@ -1308,13 +1346,16 @@ public class UtilityCommands {
 
         sheet.setHeader(header);
 
+        LocalValueStore locals = new LocalValueStore(store);
         for (DBNation nation : nations) {
             if (updateSpies) {
                 nation.updateSpies();
             }
+            locals.addProvider(Key.of(DBNation.class, Me.class), nation);
+            locals.addProvider(Key.of(User.class, Me.class), nation.getUser());
             for (int i = 0; i < columns.size(); i++) {
                 String arg = columns.get(i);
-                String formatted = placeholders.format(store, arg);
+                String formatted = placeholders.format(locals, arg);
 
                 header.set(i, formatted);
             }
@@ -1326,10 +1367,15 @@ public class UtilityCommands {
         sheet.set(0, 0);
 
         sheet.attach(channel.create()).send();
-        return null;
     }
 
-    @Command(desc = "Check if a nation shares networks with others")
+    @Command(desc = "Check if a nation shares networks with others\n" +
+            "Notes:\n" +
+            " - Sharing networks does not mean they are the same person (mobile networks, schools, public wifi, vpns, dynamic ips\n" +
+            " - A network not shared 'concurrently' or within a short timeframe may be a false positive\n" +
+            " - Having many networks, but only a few shared may be a sign of a VPN being used (there are legitimate reasons for using a VPN)\n" +
+            " - It is against game rules to use evidence to threaten or coerce others\n" +
+            "See: https://politicsandwar.com/rules/")
     public String multi(@Me IMessageIO channel, DBNation nation) {
         MultiReport report = new MultiReport(nation.getNation_id());
         String result = report.toString();
@@ -1357,8 +1403,18 @@ public class UtilityCommands {
         return nation.getBeigeTurns() + " turns";
     }
 
-    @Command(desc = "Return quickest attacks to beige an enemy", aliases = {"fastBeige", "quickestBeige", "quickBeige", "fastestBeige"})
-    public String quickestBeige(@Range(min=1, max=100) int resistance, @Switch("g") boolean noGround, @Switch("s") boolean noShip, @Switch("a") boolean noAir, @Switch("m") boolean noMissile, @Switch("n") boolean noNuke) {
+    @Command(desc = "Return quickest attacks to beige an enemy at a resistance level", aliases = {"fastBeige", "quickestBeige", "quickBeige", "fastestBeige"})
+    public String quickestBeige(@Range(min=1, max=100) int resistance,
+                                @Arg("Don't allow ground attacks")
+                                @Switch("g") boolean noGround,
+                                @Arg("Don't allow naval attacks")
+                                @Switch("s") boolean noShip,
+                                @Arg("Don't allow aircraft attacks")
+                                @Switch("a") boolean noAir,
+                                @Arg("Don't allow missile attacks")
+                                @Switch("m") boolean noMissile,
+                                @Arg("Don't allow nuclear attacks")
+                                @Switch("n") boolean noNuke) {
         if (resistance > 1000 || resistance < 1) throw new IllegalArgumentException("Resistance must be between 1 and 100");
         List<AttackType> allowed = new ArrayList<>(List.of(AttackType.values));
         if (noGround) allowed.removeIf(f -> f == AttackType.GROUND);
@@ -1379,20 +1435,23 @@ public class UtilityCommands {
     @Command(aliases = {"who", "pnw-who", "who", "pw-who", "pw-info", "how", "where", "when", "why", "whois"},
             desc = "Get detailed information about a nation\n" +
                     "Nation argument can be nation name, id, link, or discord tag\n" +
-                    "Use `-l` to list the nations instead of just providing a summary\n" +
-                    "Use `-r` to list discord tag (raw)\n" +
-                    "Use `-p` to list discord tag (ping)\n" +
-                    "Use `-i` to list individual nation info\n" +
-                    "Use `-c` to list individual nation channels" +
                     "e.g. `{prefix}who @borg`")
     public String who(@Me JSONObject command, @Me Guild guild, @Me IMessageIO channel,
+                      @Arg("The nations to get info about")
                       Set<DBNation> nations,
+                      @Arg("Sort any listed nations by this attribute")
                       @Default() NationPlaceholder sortBy,
+                      @Arg("List the nations instead of just providing a summary")
                       @Switch("l") boolean list,
+                      @Arg("List the alliances of the provided nation")
                       @Switch("a") boolean listAlliances,
+                      @Arg("List the discord user ids of each nation")
                       @Switch("r") boolean listRawUserIds,
+                      @Arg("List the discord user mentions of each nation")
                       @Switch("m") boolean listMentions,
+                      @Arg("List paginated info of each nation")
                       @Switch("i") boolean listInfo,
+                      @Arg("List all interview channels of each nation")
                       @Switch("c") boolean listChannels,
                       @Switch("p") Integer page) throws IOException {
 
@@ -1596,9 +1655,13 @@ public Map<ParametricCallable, String> getEndpoints() {
         response.append(nation.toMarkdown(false, false, false, true, spies));
     }
 
-    @Command
+    @Command(desc = "Add or subtract interest to a nation's balance based on their current balance")
     @RolePermission(value = Roles.ECON)
-    public String interest(@Me IMessageIO channel, @Me GuildDB db, Set<DBNation> nations, double interestPositivePercent, double interestNegativePercent) throws IOException, GeneralSecurityException {
+    public String interest(@Me IMessageIO channel, @Me GuildDB db, Set<DBNation> nations,
+                           @Arg("A percent (out of 100) to apply to POSITIVE resources counts in their account balance")
+                           @Range(min=-100, max=100) double interestPositivePercent,
+                           @Arg("A percent (out of 100) to apply to NEGATIVE resources counts in their account balance")
+                           @Range(min=-100, max=100) double interestNegativePercent) throws IOException, GeneralSecurityException {
         if (nations.isEmpty()) throw new IllegalArgumentException("No nations specified");
         if (nations.size() > 180) throw new IllegalArgumentException("Cannot do intest to that many people");
 
@@ -1683,7 +1746,7 @@ public Map<ParametricCallable, String> getEndpoints() {
         return null;
     }
 
-    @Command(aliases = {"dnr", "caniraid"})
+    @Command(aliases = {"dnr", "caniraid"}, desc = "Check if declaring war on a nation is allowed by the guild's Do Not Raid (DNR) settings")
     public String dnr(@Me GuildDB db, DBNation nation) {
         Integer dnrTopX = db.getOrNull(GuildDB.Key.DO_NOT_RAID_TOP_X);
         Set<Integer> enemies = db.getCoalition(Coalition.ENEMIES);
@@ -1734,8 +1797,12 @@ public Map<ParametricCallable, String> getEndpoints() {
         return "Set " + nation.getNation() + " to " + PnwUtil.resourcesToString(resources) + " worth: ~$" + PnwUtil.convertedTotal(resources);
     }
 
-    @Command(desc = "List alliances by their new members over a timeframe")
-    public String recruitmentRankings(@Me User author, @Me IMessageIO channel, @Me JSONObject command, @Timestamp long cutoff, @Range(min=1, max=150) @Default("80") int topX, @Switch("u") boolean uploadFile) {
+    @Command(desc = "Rank alliances by their new members over a timeframe")
+    public String recruitmentRankings(@Me User author, @Me IMessageIO channel, @Me JSONObject command,
+                                      @Arg("Date to start from")
+                                      @Timestamp long cutoff,
+                                      @Arg("Top X alliances to show in the ranking")
+                                      @Range(min=1, max=150) @Default("80") int topX, @Switch("u") boolean uploadFile) {
         Set<DBAlliance> alliances = Locutus.imp().getNationDB().getAlliances(true, true, true, topX);
 
         Map<DBAlliance, Integer> rankings = new HashMap<DBAlliance, Integer>();
@@ -1785,8 +1852,10 @@ public Map<ParametricCallable, String> getEndpoints() {
         return null;
     }
 
-    @Command()
-    public String unitCost(Map<MilitaryUnit, Long> units, @Default Boolean wartime) {
+    @Command(desc = "Get the cost of military units and their upkeep")
+    public String unitCost(Map<MilitaryUnit, Long> units,
+                           @Arg("Show the upkeep during war time")
+                           @Default Boolean wartime) {
         if (wartime == null) wartime = false;
         StringBuilder response = new StringBuilder();
 
@@ -1818,7 +1887,7 @@ public Map<ParametricCallable, String> getEndpoints() {
         return response.toString();
     }
 
-    @Command(aliases = {"alliancecost", "aacost"})
+    @Command(aliases = {"alliancecost", "aacost"}, desc = "Get the value of nations including their cities, projects and units")
     public String allianceCost(@Me IMessageIO channel, Set<DBNation> nations, @Switch("u") boolean update) {
         double infraCost = 0;
         double landCost = 0;
@@ -1886,6 +1955,4 @@ public Map<ParametricCallable, String> getEndpoints() {
         channel.create().embed(title, response.toString()).send();
         return null;
     }
-
-
 }

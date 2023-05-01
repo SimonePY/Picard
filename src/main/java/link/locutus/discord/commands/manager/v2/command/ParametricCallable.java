@@ -151,7 +151,14 @@ public class ParametricCallable implements ICommand {
         this.help = definition.help();
 
         //        desc.append(ICommand.formatDescription(definition));
-        this.desc = "";
+        this.desc = definition.desc();
+        if (!definition.descMethod().isBlank()) {
+            try {
+                this.desc = object.getClass().getMethod(definition.descMethod()).invoke(object).toString();
+            } catch (IllegalAccessException | InvocationTargetException | NoSuchMethodException e) {
+                throw new RuntimeException(e);
+            }
+        }
     }
 
     public static List<ParametricCallable> generateFromClass(CommandCallable parent, Object object, ValueStore store) {
@@ -248,8 +255,12 @@ public class ParametricCallable implements ICommand {
                 Parser<?> binding = parameter.getBinding();
                 if (!binding.isConsumer(store)) continue;
                 String argFormat = parameter.isOptional() || parameter.isFlag() ? "[%s]" : "<%s>";
-                if (!parameter.isFlag() && parameter.getBinding().isConsumer(store)) {
-                    argFormat = String.format(argFormat, parameter.getName());
+                if (parameter.getBinding().isConsumer(store)) {
+                    if (!parameter.isFlag()) {
+                        argFormat = String.format(argFormat, parameter.getName());
+                    } else {
+                        argFormat = String.format(argFormat, "-" + parameter.getFlag() + " " + parameter.getName());
+                    }
                     help.append(" ").append(argFormat);
                 }
             }
@@ -306,7 +317,7 @@ public class ParametricCallable implements ICommand {
         validatePermissions(store, stack.getPermissionHandler());
 
         ValueStore locals = store;
-        locals.addProvider(ParametricCallable.class, this);
+        locals.addProvider(Key.of(ParametricCallable.class, Me.class), this);
 
         Map<ParameterData, Map.Entry<String, Object>> argumentMap = new LinkedHashMap<>();
         ParameterData commandIndex = null;
@@ -478,7 +489,7 @@ public class ParametricCallable implements ICommand {
         validatePermissions(store, permisser);
 
         ValueStore locals = store;
-        locals.addProvider(ParametricCallable.class, this);
+        locals.addProvider(Key.of(ParametricCallable.class, Me.class), this);
 
         Map<String, ParameterData> paramsByName = new HashMap<>();
         Map<String, ParameterData> paramsByNameLower = new HashMap<>();

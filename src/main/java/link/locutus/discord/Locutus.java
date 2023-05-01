@@ -11,7 +11,9 @@ import link.locutus.discord.commands.manager.Noformat;
 import link.locutus.discord.commands.manager.dummy.DelegateMessage;
 import link.locutus.discord.commands.manager.dummy.DelegateMessageEvent;
 import link.locutus.discord.commands.manager.v2.command.CommandBehavior;
+import link.locutus.discord.commands.manager.v2.command.IMessageIO;
 import link.locutus.discord.commands.manager.v2.impl.SlashCommandManager;
+import link.locutus.discord.commands.manager.v2.impl.discord.DiscordChannelIO;
 import link.locutus.discord.commands.manager.v2.impl.discord.DiscordHookIO;
 import link.locutus.discord.commands.stock.StockDB;
 import link.locutus.discord.config.Settings;
@@ -608,6 +610,7 @@ public final class Locutus extends ListenerAdapter {
     }
 
     public void initRepeatingTasks() {
+        Object warUpdateLock = new Object();
         if ((Settings.INSTANCE.TASKS.ACTIVE_NATION_SECONDS > 0 || Settings.INSTANCE.TASKS.COLORED_NATIONS_SECONDS > 0 || Settings.INSTANCE.TASKS.ALL_NON_VM_NATIONS_SECONDS > 0) && nationDB.getNations().isEmpty()) {
             logger.info("No nations found. Updating all nations");
             if (Settings.USE_V2) {
@@ -659,7 +662,8 @@ public final class Locutus extends ListenerAdapter {
             }, Settings.INSTANCE.TASKS.ALL_NON_VM_NATIONS_SECONDS);
 
             addTaskSeconds(() -> {
-                synchronized (warDb) {
+                synchronized (warUpdateLock)
+                {
                     System.out.println("Start update wars 1");
                     long start = System.currentTimeMillis();
                     runEventsAsync(warDb::updateAllWarsV2);
@@ -700,7 +704,7 @@ public final class Locutus extends ListenerAdapter {
             }
 
             addTaskSeconds(() -> {
-                synchronized (warDb) {
+                synchronized (warUpdateLock) {
                     System.out.println("Start update wars 1");
                     long start = System.currentTimeMillis();
                     runEventsAsync(warDb::updateActiveWars);
@@ -711,7 +715,7 @@ public final class Locutus extends ListenerAdapter {
             }, Settings.INSTANCE.TASKS.ACTIVE_WAR_SECONDS);
 
             addTaskSeconds(() -> {
-                synchronized (warDb) {
+                synchronized (warUpdateLock) {
                     System.out.println("Start update wars");
                     long start1 = System.currentTimeMillis();
                     runEventsAsync(warDb::updateAllWarsV2);
@@ -925,10 +929,10 @@ public final class Locutus extends ListenerAdapter {
 
 
             User user = event.getUser();
-            Guild guild = event.isFromGuild() ? event.getGuild() : null;
+            Guild guild = event.isFromGuild() ? event.getGuild() : message.isFromGuild() ? message.getGuild() : null;
             MessageChannel channel = event.getChannel();
 
-            DiscordHookIO io = new DiscordHookIO(event.getHook());
+            IMessageIO io = new DiscordHookIO(event.getHook());
 
             String id = button.getId();
             if (id == null) {
@@ -966,6 +970,8 @@ public final class Locutus extends ListenerAdapter {
                     io.send("Unknown channel: <#" + channelId + ">");
                     System.out.println("Unknown channel");
                     return;
+                } else {
+                    io = new DiscordChannelIO(channel);
                 }
                 id = id.substring(id.indexOf(' ') + 1);
             }
@@ -986,7 +992,7 @@ public final class Locutus extends ListenerAdapter {
             System.out.println("ID 3 " + id + " " + behavior);
 
 //            event.deferReply(false).queue();
-            event.deferEdit().queue();
+            RateLimitUtil.queue(event.deferEdit());
 
             System.out.println("Id new " + id + " | " + behavior);
             if (id.startsWith(Settings.commandPrefix(true)) || id.startsWith(Settings.commandPrefix(false))) {
@@ -1001,7 +1007,7 @@ public final class Locutus extends ListenerAdapter {
             } else if (id.startsWith("{")){
                 getCommandManager().getV2().run(guild, channel, user, message, io, id, true);
             } else if (!id.isEmpty()) {
-                event.reply("Unknown command: " + id).queue();
+                RateLimitUtil.queue(event.reply("Unknown command: " + id));
                 return;
             }
 

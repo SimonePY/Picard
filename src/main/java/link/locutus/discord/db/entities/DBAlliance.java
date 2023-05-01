@@ -3,6 +3,8 @@ package link.locutus.discord.db.entities;
 import com.politicsandwar.graphql.model.ApiKeyDetails;
 import com.politicsandwar.graphql.model.Bankrec;
 import com.politicsandwar.graphql.model.Nation;
+import com.politicsandwar.graphql.model.NationResponseProjection;
+import com.politicsandwar.graphql.model.NationsQueryRequest;
 import it.unimi.dsi.fastutil.ints.Int2ByteArrayMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.Object2ByteArrayMap;
@@ -85,7 +87,8 @@ public class DBAlliance implements NationList, NationOrAlliance {
                 other.discord_link,
                 other.wiki_link,
                 other.dateCreated,
-                other.color);
+                other.color,
+                other.metaCache);
     }
 
     public void setLoot(LootEntry lootEntry) {
@@ -262,10 +265,11 @@ public class DBAlliance implements NationList, NationOrAlliance {
     }
 
     public static DBAlliance getOrCreate(int aaId) {
+        if (aaId == 0) return new DBAlliance(0, "None", "", "", "", "", "", 0, NationColor.GRAY, null);
         return Locutus.imp().getNationDB().getOrCreateAlliance(aaId);
     }
 
-    public DBAlliance(int allianceId, String name, String acronym, String flag, String forum_link, String discord_link, String wiki_link, long dateCreated, NationColor color) {
+    public DBAlliance(int allianceId, String name, String acronym, String flag, String forum_link, String discord_link, String wiki_link, long dateCreated, NationColor color, Int2ObjectOpenHashMap<byte[]> metaCache) {
         this.allianceId = allianceId;
         this.dateCreated = dateCreated;
         this.name = name;
@@ -275,6 +279,7 @@ public class DBAlliance implements NationList, NationOrAlliance {
         this.forum_link = forum_link;
         this.discord_link = discord_link;
         this.wiki_link = wiki_link;
+        this.metaCache = metaCache;
     }
 
     @Command(desc = "Number of offensive and defensive wars since date")
@@ -1226,5 +1231,41 @@ public class DBAlliance implements NationList, NationOrAlliance {
         PoliticsAndWarV3 api = getApiOrThrow(true, AlliancePermission.MANAGE_TREATIES);
         com.politicsandwar.graphql.model.Treaty result = api.cancelTreaty(id);
         return new Treaty(result);
+    }
+
+    public double getCities() {
+        return getMemberDBNations().stream().mapToDouble(DBNation::getCities).sum();
+    }
+
+    public Map<DBNation, Integer> updateOffSpyOps() {
+        Map<DBNation, Integer> ops = new HashMap<>();
+        // get api
+        PoliticsAndWarV3 api = getApiOrThrow(true, AlliancePermission.SEE_SPIES);
+        for (Nation nation : api.fetchNations(new Consumer<NationsQueryRequest>() {
+            @Override
+            public void accept(NationsQueryRequest request) {
+                request.setAlliance_id(List.of(allianceId));
+                request.setVmode(false);
+            }
+        }, new Consumer<NationResponseProjection>() {
+            @Override
+            public void accept(NationResponseProjection proj) {
+                proj.id();
+                proj.spies();
+                proj.spy_attacks();
+                proj.espionage_available();
+            }
+        })) {
+            DBNation dbNation = DBNation.byId(nation.getId());
+            if (dbNation == null) continue;
+            DBNation copy = new DBNation(dbNation);
+
+            dbNation.setSpies(nation.getSpies(), false);
+            if (nation.getEspionage_available() != (dbNation.isEspionageAvailable())) {
+                dbNation.setEspionageFull(!nation.getEspionage_available());
+            }
+            ops.put(dbNation, nation.getSpy_attacks());
+        }
+        return ops;
     }
 }

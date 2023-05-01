@@ -142,7 +142,6 @@ public class GuildHandler {
         GuildMessageChannel alertChannel = getDb().getOrNull(GuildDB.Key.INTERVIEW_PENDING_ALERTS);
         if (alertChannel == null) return;
 
-
         Role appRole = Roles.APPLICANT.toRole(getGuild());
         if (appRole == null) return;
 
@@ -298,13 +297,12 @@ public class GuildHandler {
                 if (nation.getAlliance_id() != 0 && !aaIds.contains(nation.getAlliance_id())) {
                     body.append("\n\n**Already member of AA: " + nation.getAllianceName() + "**\n\n");
                     mentionInterviewer = false;
-                    RateLimitUtil.queueWhenFree(author.openPrivateChannel().complete().sendMessage("As you're already a member of another alliance, message or ping @" + interviewerRole.getName() + " to (proceed"));
+                    RateLimitUtil.queue(RateLimitUtil.complete(author.openPrivateChannel()).sendMessage("As you're already a member of another alliance, message or ping @" + interviewerRole.getName() + " to (proceed"));
                 } else {
-                    RateLimitUtil.queueWhenFree(author.openPrivateChannel().complete().sendMessage("Thank you for applying. People may be busy with irl things, so please be patient. An IA representative will proceed with your application as soon as they are able."));
+                    RateLimitUtil.queue(RateLimitUtil.complete(author.openPrivateChannel()).sendMessage("Thank you for applying. People may be busy with irl things, so please be patient. An IA representative will proceed with your application as soon as they are able."));
                 }
             }
         }
-
 
         body.append("The first on the trigger, react with the " + emoji + " emoji");
 
@@ -313,10 +311,12 @@ public class GuildHandler {
                 "Assigned to %user% in {timediff}'\n" +
                 CM.interview.create.cmd.create(author.getAsMention()).toCommandArgs();
 
+        IMessageBuilder msg = new DiscordChannelIO(alertChannel).create().embed(title, body.toString()).commandButton(pending, emoji);
         DiscordUtil.createEmbedCommand(alertChannel, title, body.toString(), emoji, pending);
         if (mentionInterviewer) {
-            alertChannel.sendMessage("^ " + interviewerRole.getAsMention()).complete().delete();
+            msg.append("^ " + interviewerRole.getAsMention());
         }
+        msg.send();
         return true;
     }
 
@@ -387,7 +387,8 @@ public class GuildHandler {
                     }
                     title = type + ": " + current.getNation() + " | " + "" + Settings.INSTANCE.PNW_URL() + "/nation/id=" + current.getNation_id() + " | " + current.getAllianceName();
                 }
-                AlertUtil.displayChannel(title, current.toString(), channel.getIdLong());
+                String message = "**" + title + "**\n" + current.toString() + "\n";
+                RateLimitUtil.queueMessage(channel, message, true, 60);
             }
         }
     }
@@ -472,7 +473,7 @@ public class GuildHandler {
         if (!aaIds.isEmpty()) {
 
             // New applicant
-            if (current.getPositionEnum() == Rank.APPLICANT && aaIds.contains(current.getAlliance_id())) {
+            if (current.getPositionEnum() == Rank.APPLICANT && aaIds.contains(current.getAlliance_id()) && !aaIds.contains(current.getAlliance_id()) && current.active_m() < 2880) {
                 MessageChannel channel = db.getOrNull(GuildDB.Key.MEMBER_LEAVE_ALERT_CHANNEL);
                 if (channel != null) {
                     String type = "New Applicant Ingame";
@@ -481,7 +482,9 @@ public class GuildHandler {
                         type += " | " + user.getAsMention();
                     }
                     String title = type + ": " + current.getNation() + " | " + "" + Settings.INSTANCE.PNW_URL() + "/nation/id=" + current.getNation_id() + " | " + current.getAllianceName();
-                    AlertUtil.displayChannel(title, current.toString(), channel.getIdLong());
+
+                    String message = "**" + title + "**" + "\n" + current.toString() + "\n";
+                    RateLimitUtil.queueMessage(channel, message, true, 60);
                 }
             }
         }
@@ -536,39 +539,57 @@ public class GuildHandler {
         onNewApplicant(current);
         Set<Integer> aaIds = db.getAllianceIds();
         if (!aaIds.isEmpty()) {
-
-            // member leave
             if (aaIds.contains(previous.getAlliance_id()) && current.getAlliance_id() != previous.getAlliance_id()) {
                 MessageChannel channel = db.getOrNull(GuildDB.Key.MEMBER_LEAVE_ALERT_CHANNEL);
                 if (channel != null) {
-                    Rank rank = Rank.byId(previous.getPosition());
-                    String title = previous.getNation() + " (" + rank.name() + ") left";
-                    StringBuilder body = new StringBuilder();
-                    body.append(MarkupUtil.markdownUrl(current.getNation(), current.getNationUrl()));
-                    body.append("\nActive: " + TimeUtil.secToTime(TimeUnit.MINUTES, current.getActive_m()));
-                    User user = current.getUser();
-                    if (user != null) {
-                        body.append("\nUser: " + user.getAsMention());
-                    }
-                    if (user != null && current.getActive_m() < 2880) {
-                        try {
-                            double[] depoTotal = current.getNetDeposits(db);
-                            body.append("\n\nPlease check the following:\n" +
-                                    " - Discord roles\n" +
-                                    " - Deposits: `" + PnwUtil.resourcesToString(depoTotal) + "` worth: ~$" + MathMan.format(PnwUtil.convertedTotal(depoTotal)));
-                        } catch (IOException e) {
-                            e.printStackTrace();
-                        }
-                        String emoji = "Claim";
-                        String pending = "_" + Settings.commandPrefix(true) + "UpdateEmbed 'description:{description}\n" +
-                                "\n" +
-                                "Assigned to %user% in {timediff}'";
-                        DiscordUtil.createEmbedCommand(channel, title, body.toString(), emoji, pending);
-                    } else {
-                        DiscordUtil.createEmbedCommand(channel, title, body.toString());
-                    }
+                    addLeaveMessage(channel, previous, current);
                 }
             }
+        }
+    }
+
+    private void addLeaveMessage(MessageChannel channel, DBNation previous, DBNation current) {
+        // Ignore if inactive and no user in discord
+        User user = current.getUser();
+        Member member = user == null ? null : db.getGuild().getMember(user);
+        if (member == null && current.active_m() > 7200) return;
+
+        Rank rank = Rank.byId(previous.getPosition());
+        String title = previous.getNation() + " (" + rank.name() + ") left";
+        StringBuilder body = new StringBuilder();
+        body.append(MarkupUtil.markdownUrl(current.getNation(), current.getNationUrl()));
+
+        body.append("\nActive: " + TimeUtil.secToTime(TimeUnit.MINUTES, current.getActive_m()));
+        if (user != null) {
+            body.append("\nUser: " + user.getAsMention());
+        }
+
+        DiscordChannelIO io = new DiscordChannelIO(channel);
+
+        if (user != null && current.getActive_m() < 2880) {
+            try {
+                double[] depoTotal = current.getNetDeposits(db);
+                body.append("\n\nPlease check the following:\n" +
+                        " - Discord roles\n" +
+                        " - Deposits: `" + PnwUtil.resourcesToString(depoTotal) + "` worth: ~$" + MathMan.format(PnwUtil.convertedTotal(depoTotal)));
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            String emoji = "Claim";
+            String pending = "_" + Settings.commandPrefix(true) + "UpdateEmbed 'description:{description}\n" +
+                    "\n" +
+                    "Assigned to %user% in {timediff}'";
+
+            io.create().embed(title, body.toString())
+                    .commandButton(pending, emoji).send();
+        } else {
+            RateLimitUtil.queueMessage(io, new Function<IMessageBuilder, Boolean>() {
+                @Override
+                public Boolean apply(IMessageBuilder msg) {
+                    msg.embed(title, body.toString());
+                    return true;
+                }
+            }, true, 60);
         }
     }
 
@@ -1601,26 +1622,29 @@ public class GuildHandler {
             @Override
             public void run() {
                 try {
-                    if (rateLimit && wars.size() > 1) {
-                        if (!dnrViolations.isEmpty() && db.isWhitelisted()) {
-                            for (DBWar war : dnrViolations) {
-                                DBNation nation = war.getNation(true);
-                                if (nation == null) continue;
-                                User user = nation.getUser();
-                                if ((!aaIds.contains(war.attacker_aa)) && (user == null || guild.getMember(user) == null))
-                                    continue;
+                    if (!dnrViolations.isEmpty()) {
+                        Locutus.imp().getExecutor().submit(() -> {
+                            try {
+                                ApiKeyPool key = db.getMailKey();
+                                for (DBWar war : dnrViolations) {
+                                    DBNation nation = war.getNation(true);
+                                    if (nation == null) continue;
+                                    User user = nation.getUser();
+                                    if ((!aaIds.contains(war.attacker_aa)) && (user == null || guild.getMember(user) == null))
+                                        continue;
 
-                                String title = "Do Not Raid/" + channel.getIdLong();
-                                String message = MarkupUtil.htmlUrl(war.toUrl(), war.toUrl()) + " violates the `Do Not Raid` list. If you were not asked to attack, please offer peace\n\nNote: This is an automated message";
-                                try {
-                                    new MailTask(Locutus.imp().getRootAuth(), nation, title, message, channel).call();
-                                } catch (Throwable e) {
-                                    e.printStackTrace();
+                                    String title = "Do Not Raid/" + channel.getIdLong();
+                                    String message = MarkupUtil.htmlUrl(war.toUrl(), war.toUrl()) + " violates the `Do Not Raid` list. If you were not asked to attack, please offer peace\n\nNote: This is an automated message";
+
+                                    nation.sendMail(key, title, message);
                                 }
+                            } catch (Throwable e) {
+                                e.printStackTrace();
                             }
-                        }
+                        });
+                    }
 
-
+                    if (rateLimit && wars.size() > 1) {
                         String title = wars.size() + " new " + (offensive ? "Offensive" : "Defensive") + " wars";
                         StringBuilder body = new StringBuilder();
                         StringBuilder footer = new StringBuilder();
@@ -1724,38 +1748,43 @@ public class GuildHandler {
                         }
 
                         if (!dnrViolations.isEmpty()) {
-                            footer.append("^ violates the `Do Not Raid` list. If you were not asked to attack (e.g. as a counter), please offer peace (Note: This is an automated message)\n");
+                            footer.append("To modify the `Do Not Raid` see: " + CM.coalition.list.cmd.toSlashMention() + " / " + CM.settings.cmd.toSlashMention() + " with key `" + GuildDB.Key.DO_NOT_RAID_TOP_X.name() + "`\n");
                         }
 
-                        RateLimitUtil.queueWhenFree(() -> {
-                            if (title.length() + 10 + body.length() < 2000) {
-                                DiscordUtil.createEmbedCommand(channel, title, body.toString());
+                        RateLimitUtil.queueMessage(new DiscordChannelIO(channel), new Function<IMessageBuilder, Boolean>() {
+                            @Override
+                            public Boolean apply(IMessageBuilder msg) {
+                                if (title.length() + 10 + body.length() < 2000) {
+                                    msg.embed(title, body.toString());
 
-                                Set<String> allMentions = new HashSet<>();
-                                for (Set<String> pings : pingUserOrRoles.values()) allMentions.addAll(pings);
-                                if (!allMentions.isEmpty()) {
-                                    footer.append(StringMan.join(allMentions, " "));
-                                }
+                                    Set<String> allMentions = new HashSet<>();
+                                    for (Set<String> pings : pingUserOrRoles.values()) allMentions.addAll(pings);
+                                    if (!allMentions.isEmpty()) {
+                                        footer.append(StringMan.join(allMentions, " "));
+                                    }
 
-                                if (footer.length() > 0) {
-                                    RateLimitUtil.complete(channel.sendMessage(footer.toString()));
+                                    if (footer.length() > 0) {
+                                        msg.append(footer.toString());
+                                    }
+                                } else {
+                                    String full = "__**" + title + "**__\n" + bodyRaw.toString();
+                                    msg.append(full);
                                 }
-                            } else {
-                                String full = "__**" + title + "**__\n" + bodyRaw.toString();
-                                DiscordUtil.sendMessage(channel, full);
+                                return true;
                             }
-                        });
+                        }, true, null);
                     } else {
                         for (Map.Entry<DBWar, DBWar> entry : wars) {
                             DBWar war = entry.getValue();
                             WarCard card = new WarCard(war.warId);
                             CounterStat stat = card.getCounterStat();
-                            card.embed(new DiscordChannelIO(channel, null), false);
+                            IMessageBuilder msg = card.embed(new DiscordChannelIO(channel).create(), false, true, false);
 
 
                             StringBuilder footer = new StringBuilder();
                             if (dnrViolations.contains(war)) {
-                                footer.append("^ violates the `Do Not Raid` list. If you were not asked to attack (e.g. as a counter), please offer peace (Note: This is an automated message)\n");
+                                footer.append("^ violates the `Do Not Raid` (DNR) list. If you were not asked to attack (e.g. as a counter), please offer peace (Note: This is an automated message)\n");
+                                footer.append("(To modify the DNR: " + CM.coalition.list.cmd.toSlashMention() + " / " + CM.settings.cmd.toSlashMention() + " with key `" + GuildDB.Key.DO_NOT_RAID_TOP_X.name() + "`\n");
                             }
                             List<String> tips = new ArrayList<>();
 
@@ -1812,12 +1841,13 @@ public class GuildHandler {
                             }
 
                             if (footer.length() > 0 || !tips.isEmpty()) {
-                                String msg = footer.toString().trim();
+                                String footerMsg = footer.toString().trim();
                                 if (!tips.isEmpty()) {
-                                    msg += " ``` - " + StringMan.join(tips, "\n - ") + "```";
+                                    footerMsg += " ``` - " + StringMan.join(tips, "\n - ") + "```";
                                 }
-                                RateLimitUtil.complete(channel.sendMessage(msg));
+                                msg.append(footerMsg);
                             }
+                            msg.send();
                         }
                     }
                 } catch (InsufficientPermissionException e) {
@@ -2321,10 +2351,11 @@ public class GuildHandler {
         sendMail(event.getCurrent());
     }
 
+    private boolean sentNoIAMessage = false;
+
     private void sendMail(DBNation current) {
         if (!sentMail.contains(current.getNation_id())) {
             sentMail.add(current.getNation_id());
-
 
             if (db.isDelegateServer()) return;
             GuildMessageChannel output = db.getOrNull(GuildDB.Key.RECRUIT_MESSAGE_OUTPUT, false);
@@ -2365,11 +2396,14 @@ public class GuildHandler {
                     return;
                 }
                 if (!allowed) {
-                    try {
-                        RateLimitUtil.queueWhenFree(output.sendMessage("No INTERNAL_AFFAIRS is currently online (note: This restriction only applies to alliances with 9 or less active members. To avoid recruitment graveyards)"));
-                    } catch (Throwable e) {
-                        db.deleteInfo(GuildDB.Key.RECRUIT_MESSAGE_OUTPUT);
-                        e.printStackTrace();
+                    if (!sentNoIAMessage) {
+                        try {
+                            sentNoIAMessage = true;
+                            RateLimitUtil.queueWhenFree(output.sendMessage("No INTERNAL_AFFAIRS is currently offline (note: This restriction only applies to alliances with 9 or less active members. To avoid recruitment graveyards)\n"));
+                        } catch (Throwable e) {
+                            db.deleteInfo(GuildDB.Key.RECRUIT_MESSAGE_OUTPUT);
+                            e.printStackTrace();
+                        }
                     }
                     return;
                 }
@@ -2391,12 +2425,12 @@ public class GuildHandler {
                 public void runUnsafe() {
                     try {
                         JsonObject response = db.sendRecruitMessage(current);
-                        RateLimitUtil.queueMessage(output, (current.getNation() + ": " + response), true);
+                        RateLimitUtil.queueMessage(output, (current.getNation() + ": " + response), true, 5 * 60);
                     } catch (Throwable e) {
                         try {
-                            if (guildsFailedMailSend.contains(db.getIdLong())) {
+                            if (!guildsFailedMailSend.contains(db.getIdLong())) {
                                 guildsFailedMailSend.add(db.getIdLong());
-                                RateLimitUtil.queueMessage(output, (current.getNation() + " (error): " + e.getMessage()), true);
+                                RateLimitUtil.queueMessage(output, (current.getNation() + " (error): " + e.getMessage()), true, 5 * 60);
                             }
                         } catch (Throwable e2) {
                             db.deleteInfo(GuildDB.Key.RECRUIT_MESSAGE_OUTPUT);

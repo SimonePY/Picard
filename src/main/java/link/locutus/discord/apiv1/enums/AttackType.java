@@ -1,5 +1,6 @@
 package link.locutus.discord.apiv1.enums;
 
+
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -26,7 +27,6 @@ public enum AttackType {
     private final String name;
     private final int mapUsed;
     private final int resistanceIT;
-
     AttackType(int mapUsed, int resistanceIT, MilitaryUnit... units) {
         this(null, mapUsed, resistanceIT, units);
     }
@@ -39,42 +39,24 @@ public enum AttackType {
     }
 
     public static AttackType fromV3(com.politicsandwar.graphql.model.AttackType v3) {
-        switch (v3) {
-            case AIRVINFRA:
-                return AIRSTRIKE1;
-            case AIRVSOLDIERS:
-                return AIRSTRIKE2;
-            case AIRVTANKS:
-                return AIRSTRIKE3;
-            case AIRVMONEY:
-                return AIRSTRIKE4;
-            case AIRVSHIPS:
-                return AIRSTRIKE5;
-            case AIRVAIR:
-                return AIRSTRIKE6;
-            case GROUND:
-                return GROUND;
-            case MISSILE:
-                return MISSILE;
-            case MISSILEFAIL:
-                return MISSILE;
-            case NUKE:
-                return NUKE;
-            case NUKEFAIL:
-                return NUKE;
-            case NAVAL:
-                return NAVAL;
-            case FORTIFY:
-                return FORTIFY;
-            case PEACE:
-                return PEACE;
-            case VICTORY:
-                return VICTORY;
-            case ALLIANCELOOT:
-                return A_LOOT;
-            default:
-                throw new IllegalStateException("No v3 attack type found");
-        }
+        return switch (v3) {
+            case AIRVINFRA -> AIRSTRIKE1;
+            case AIRVSOLDIERS -> AIRSTRIKE2;
+            case AIRVTANKS -> AIRSTRIKE3;
+            case AIRVMONEY -> AIRSTRIKE4;
+            case AIRVSHIPS -> AIRSTRIKE5;
+            case AIRVAIR -> AIRSTRIKE6;
+            case GROUND -> GROUND;
+            case MISSILE -> MISSILE;
+            case MISSILEFAIL -> MISSILE;
+            case NUKE -> NUKE;
+            case NUKEFAIL -> NUKE;
+            case NAVAL -> NAVAL;
+            case FORTIFY -> FORTIFY;
+            case PEACE -> PEACE;
+            case VICTORY -> VICTORY;
+            case ALLIANCELOOT -> A_LOOT;
+        };
     }
 
     public static AttackType get(String input) {
@@ -82,6 +64,11 @@ public enum AttackType {
             return get(input.substring(0, input.length() - 1));
         }
         return valueOf(input);
+    }
+
+    @Override
+    public String toString() {
+        return name;
     }
 
     public int getResistanceIT() {
@@ -116,12 +103,9 @@ public enum AttackType {
     }
 
     public boolean isVictory() {
-        switch (this) {
-            case VICTORY:
-            case A_LOOT:
-                return true;
-            default:
-                return false;
-        }
+        return switch (this) {
+            case VICTORY, A_LOOT -> true;
+            default -> false;
+        };
     }
 }

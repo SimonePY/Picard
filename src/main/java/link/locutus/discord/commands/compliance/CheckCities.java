@@ -84,7 +84,7 @@ public class CheckCities extends Command {
         for (DBNation nation : nations) {
             if (!db.isAllianceId(nation.getAlliance_id())) {
                 return "Nation `" + nation.getName() + "` is in " + nation.getAlliance().getQualifiedName() + " but this server is registered to: "
-                        + StringMan.getString(db.getAllianceIds()) + "\nSee: " + CM.settings.cmd.toSlashMention() + " with key `" + GuildDB.Key.ALLIANCE_ID + "`";
+                        + StringMan.getString(db.getAllianceIds()) + "\nSee: " + CM.settings.cmd.toSlashMention() + " with key `" + GuildDB.Key.ALLIANCE_ID.name() + "`";
             }
             if (!aaIds.contains(nation.getAlliance_id())) {
                 return "Nation is not in the same alliance: " + nation.getNation() + " != " + StringMan.getString(aaIds);
@@ -120,7 +120,7 @@ public class CheckCities extends Command {
                 auditResult = auditResults.get(nation);
             }
             if (auditResult == null) {
-                CompletableFuture<Message> messageFuture = event.getChannel().sendMessage("Fetching city info: (this will take a minute)").submit();
+                CompletableFuture<Message> messageFuture = RateLimitUtil.queue(event.getChannel().sendMessage("Fetching city info: (this will take a minute)"));
                 auditResult = checkup.checkup(nation, individual, false);
                 auditResults.put(nation, auditResult);
                 RateLimitUtil.queue(messageFuture.get().delete());
@@ -147,7 +147,7 @@ public class CheckCities extends Command {
                 if (flags.contains('p')) {
                     PNWUser user = Locutus.imp().getDiscordDB().getUserFromNationId(nation.getNation_id());
                     if (user != null) {
-                        event.getChannel().sendMessage("^ " + user.getAsMention()).complete();
+                        RateLimitUtil.complete(event.getChannel().sendMessage("^ " + user.getAsMention()));
                     }
                 } else if (mail) {
                     String title = nation.getAllianceName() + " Automatic checkup";
@@ -164,7 +164,7 @@ public class CheckCities extends Command {
                     RateLimitUtil.queue(event.getChannel().sendMessage(userStr + ": " + response));
                 }
             } else {
-                event.getChannel().sendMessage("All checks passed for " + nation.getNation()).complete();
+                RateLimitUtil.queue(event.getChannel().sendMessage("All checks passed for " + nation.getNation()));
             }
             output.setLength(0);
         }

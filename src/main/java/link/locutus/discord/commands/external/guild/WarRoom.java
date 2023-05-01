@@ -104,7 +104,7 @@ public class WarRoom extends Command {
                 }
             }
 
-            event.getChannel().sendMessage("Generating channels...").complete();
+            RateLimitUtil.queue(event.getChannel().sendMessage("Generating channels..."));
 
             if (filterArg != null) {
                 Set<DBNation> nations = DiscordUtil.parseNations(guild, filterArg);
@@ -161,7 +161,7 @@ public class WarRoom extends Command {
         return response.toString();
     }
 
-    public WarCategory.WarRoom createChannel(WarCategory warCat, User author, Guild guild, Consumer<String> errorOutput, boolean ping, boolean addMember, boolean addMessage, DBNation target, Collection<DBNation> attackers) {
+    public static WarCategory.WarRoom createChannel(WarCategory warCat, User author, Guild guild, Consumer<String> errorOutput, boolean ping, boolean addMember, boolean addMessage, DBNation target, Collection<DBNation> attackers) {
         GuildDB db = Locutus.imp().getGuildDB(guild);
         WarCategory.WarRoom room = warCat.get(target, true, true, true, true);
         TextChannel channel = room.getChannel(true, true);
@@ -201,7 +201,7 @@ public class WarRoom extends Command {
                 }
 
                 if (!contains) {
-                    channel.putPermissionOverride(member).grant(Permission.VIEW_CHANNEL).complete();
+                    RateLimitUtil.complete(channel.putPermissionOverride(member).grant(Permission.VIEW_CHANNEL));
                     if (ping) {
                         String msg = author.getName() + " added " + user.getAsMention();
 

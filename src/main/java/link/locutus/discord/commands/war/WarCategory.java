@@ -146,9 +146,13 @@ public class WarCategory {
                 targetId = to.defender_id;
             } else if (allianceIds.contains(to.defender_aa)) {
                 targetId = to.attacker_id;
+            } else if (warRoomMap.containsKey(to.attacker_id)) {
+                targetId = to.attacker_id;
             } else {
                 return;
             }
+
+
             int participantId = to.attacker_id == targetId ? to.defender_id : to.attacker_id;
             DBNation target = Locutus.imp().getNationDB().getNation(targetId);
             DBNation participant = Locutus.imp().getNationDB().getNation(participantId);
@@ -368,8 +372,8 @@ public class WarCategory {
                             if (!defLosses.isEmpty()) message += "\nDefender unit losses: " + StringMan.getString(defLosses);
                         }
 
-                        if (RateLimitUtil.getCurrentUsed() > 25) {
-                            DiscordUtil.createEmbedCommand(room.getChannel(), attack.attack_type.toString(), message);
+                        if (RateLimitUtil.getCurrentUsed() > 10) {
+                            new DiscordChannelIO(room.getChannel()).create().embed(attack.attack_type.toString(), message).sendWhenFree();
                         } else {
                             String emoji = "War Info";
                             String cmd = "_" + Settings.commandPrefix(true) + "WarInfo " + attack.war_id;
@@ -475,7 +479,7 @@ public class WarCategory {
     public WarCategory.WarRoom createChannel(User author, Consumer<String> errorOutput, boolean ping, boolean addMember, boolean addMessage, DBNation target, Collection<DBNation> attackers) {
         ApiKeyPool mailKey = db.getMailKey();
         if (addMessage && mailKey == null) {
-            errorOutput.accept("No mail key available. See: " + CM.settings.cmd.toSlashMention() + " with key `" + GuildDB.Key.API_KEY + "`");
+            errorOutput.accept("No mail key available. See: " + CM.settings.cmd.toSlashMention() + " with key `" + GuildDB.Key.API_KEY.name() + "`");
             addMessage = false;
         }
         GuildDB db = Locutus.imp().getGuildDB(guild);
@@ -517,7 +521,7 @@ public class WarCategory {
                 }
 
                 if (!contains) {
-                    channel.putPermissionOverride(member).grant(Permission.VIEW_CHANNEL).complete();
+                    RateLimitUtil.complete(channel.putPermissionOverride(member).grant(Permission.VIEW_CHANNEL));
                     if (ping) {
                         String msg = (author != null ? author.getName() : "null") + " added " + user.getAsMention();
 

@@ -13,6 +13,7 @@ import link.locutus.discord.util.TimeUtil;
 import java.awt.*;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
@@ -37,7 +38,7 @@ public class PrimitiveBindings extends BindingHelper {
         };
     }
 
-    @Binding(examples = "hello")
+    @Binding(examples = "hello", value = "A single line of text")
     public static String String(ParameterData param, String input) {
         Filter annotation = param.getAnnotation(Filter.class);
         if (annotation != null && !input.matches(annotation.value())) {
@@ -63,17 +64,17 @@ public class PrimitiveBindings extends BindingHelper {
      * @return a number
      * @throws IllegalArgumentException thrown on parse error
      */
-    @Binding(types = {double.class}, examples = {"3.0"})
+    @Binding(types = {double.class}, examples = {"3.0", "3*4.5-6/2", "50.3m"}, value = "A decimal number")
     public static Double Double(String input) {
         return Number(input).doubleValue();
     }
 
-    @Binding(types = {int.class}, examples = {"3"})
+    @Binding(types = {int.class}, examples = {"3", "3*4-6/2", "50.3m"}, value = "A whole number")
     public static Integer Integer(String input) {
         return Number(input).intValue();
     }
 
-    @Binding(examples = {"#420420"})
+    @Binding(examples = {"#420420"}, value = "A color name or hex code")
     public static Color color(String input) {
         if (input.charAt(0) == '#') return Color.decode(input);
         try {
@@ -83,7 +84,7 @@ public class PrimitiveBindings extends BindingHelper {
         }
     }
 
-    @Binding(types = {long.class}, examples = {"3k"})
+    @Binding(types = {long.class}, examples = {"3", "3*4-6/2", "50.3k"}, value = "A whole number")
     public static Long Long(String input) {
         try {
             return Long.parseLong(input);
@@ -92,7 +93,7 @@ public class PrimitiveBindings extends BindingHelper {
         return Number(input).longValue();
     }
 
-    @Binding(examples = {"3.0"})
+    @Binding(examples = {"3.0", "3.2*4-6/2", "50.3k"}, value = "A decimal number")
     public static Number Number(String input) {
         try {
             Double parsed = MathMan.parseDouble(input);
@@ -114,24 +115,33 @@ public class PrimitiveBindings extends BindingHelper {
         throw new IllegalStateException("No ArgumentStack set in command locals.");
     }
 
-    @Binding
+    @Binding(examples = {"a b c"}, value = "Multiple words or text separated by spaces")
     public List<String> all(@TextArea String string) {
-        return StringMan.split(string, ' ');
+        List<String> result = new ArrayList<>(StringMan.split(string, ' '));
+        // remove starting and ending quote if exist
+        for (int i = 0; i < result.size(); i++) {
+            String s = result.get(i);
+            if (s.length() <= 2) continue;
+             if (StringMan.isQuote(s.charAt(0)) && StringMan.isQuote(s.charAt(s.length() - 1))) {
+                result.set(i, s.substring(1, s.length() - 1));
+            }
+        }
+        return result;
     }
 
-    @Binding(examples = {"8-4-4-4-12"})
+    @Binding(examples = {"8-4-4-4-12"}, value = "Universally Unique IDentifier")
     public UUID uuid(String argument) {
         return UUID.fromString(argument);
     }
 
     @Timediff
-    @Binding(types = {long.class}, examples = {"5d", "10h3m25s"})
-    public Long timediff(String argument) {
+    @Binding(types = {long.class}, examples = {"5d", "1w10h3m25s", "timestamp:1682013943000"}, value = "A time difference or unix timestamp which will resolve as a difference relative to the current date")
+    public static Long timediff(String argument) {
         return TimeUtil.timeToSec(argument) * 1000;
     }
 
     @Timestamp
-    @Binding(types={long.class}, examples = {"5d", "10h3m25s", "dd/MM/yyyy"})
+    @Binding(types={long.class}, examples = {"5d", "1w10h3m25s", "dd/MM/yyyy", "timestamp:1682013943000"}, value = "A unix timestamp, a DMY date or a time difference that will resolve to a timestamp from the current date")
     public static Long timestamp(String argument) throws ParseException {
         if (argument.equalsIgnoreCase("%epoch%")) {
             return 0L;

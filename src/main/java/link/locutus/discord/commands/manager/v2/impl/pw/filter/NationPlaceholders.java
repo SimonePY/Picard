@@ -35,11 +35,15 @@ public class NationPlaceholders extends Placeholders<DBNation> {
         List<NationAttribute> result = new ArrayList<>();
         for (CommandCallable cmd : getFilterCallables()) {
             String id = cmd.aliases().get(0);
-            Map.Entry<Type, Function<DBNation, Object>> typeFunction = getPlaceholderFunction(store, id);
-            if (typeFunction == null) continue;
+            try {
+                Map.Entry<Type, Function<DBNation, Object>> typeFunction = getPlaceholderFunction(store, id);
+                if (typeFunction == null) continue;
 
-            NationAttribute metric = new NationAttribute(cmd.getPrimaryCommandId(), cmd.simpleDesc(), typeFunction.getKey(), typeFunction.getValue());
-            result.add(metric);
+                NationAttribute metric = new NationAttribute(cmd.getPrimaryCommandId(), cmd.simpleDesc(), typeFunction.getKey(), typeFunction.getValue());
+                result.add(metric);
+            } catch (IllegalStateException | CommandUsageException ignore) {
+                continue;
+            }
         }
         return result;
     }
@@ -114,12 +118,10 @@ public class NationPlaceholders extends Placeholders<DBNation> {
     }
 
     public String format(ValueStore<?> store, String arg) {
-        Guild guild = store.getProvided(Key.of(Me.class, Guild.class));
-        MessageChannel channel = store.getProvided(Key.of(Me.class, MessageChannel.class));
-        User author = store.getProvided(Key.of(Me.class, User.class));
-        DBNation me = store.getProvided(Key.of(Me.class, DBNation.class));
-
-        // todo
+        Guild guild = store.getProvided(Key.of(Guild.class, Me.class));
+        MessageChannel channel = store.getProvided(Key.of(MessageChannel.class, Me.class));
+        User author = store.getProvided(Key.of(User.class, Me.class));
+        DBNation me = store.getProvided(Key.of(DBNation.class, Me.class));
 
         return DiscordUtil.format(guild, channel, author, me, arg);
     }

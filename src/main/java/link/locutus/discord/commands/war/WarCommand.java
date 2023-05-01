@@ -161,7 +161,7 @@ public class WarCommand extends Command {
                     nations.remove(war.getNation(false));
                 }
 
-                CompletableFuture<Message> msg = event.getChannel().sendMessage("Please wait... ").submit();
+                CompletableFuture<Message> msg = RateLimitUtil.queue(event.getChannel().sendMessage("Please wait... "));
 
                 Set<Integer> allies = db.getAllies();
                 Set<Integer> enemies = db.getCoalitions().get("enemies");
@@ -203,9 +203,6 @@ public class WarCommand extends Command {
                         if (flags.contains('e')) {
                             value = BlitzGenerator.getAirStrength(nation, true);
                         } else {
-
-                            String mmrBuilding = nation.getMMRBuildingStr();
-
                             value = BlitzGenerator.getAirStrength(nation, true);
                             value *= 2 * (nation.getCities() / (double) me.getCities());
                             if (nation.getOff() > 0) value /= 4;
