@@ -530,7 +530,8 @@ public class PnwUtil {
                 transfer = new LinkedHashMap<>();
                 for (String s : split) {
                     Character typeChar = s.charAt(s.length() - 1);
-                    ResourceType type1 = ResourceType.parseChar(typeChar);
+                    //ResourceType type1 = ResourceType.parseChar(typeChar);
+                    ResourceType type1 = ResourceType.parse(String.valueOf(typeChar));
                     double amount = MathMan.parseDouble(s.substring(0, s.length() - 1));
                     transfer.put(type1, amount);
                 }
